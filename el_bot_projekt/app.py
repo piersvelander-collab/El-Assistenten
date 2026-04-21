@@ -47,11 +47,24 @@ def init_vector_db():
     doc_dir = os.path.join(current_dir, "dokument")
     index_path = os.path.join(current_dir, "faiss_index")
     
-    # Använder Googles gratis och extremt stabila inbäddningar
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=google_api_key)
+# --- RESURSSNÅL DOKUMENT-LOGIK (Noll krascher) ---
+@st.cache_resource
+def init_vector_db():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    doc_dir = os.path.join(current_dir, "dokument")
+    index_path = os.path.join(current_dir, "faiss_index")
+    
+    # 1. Vi byter till Googles allra nyaste inbäddningsmodell
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/text-embedding-004", 
+        google_api_key=google_api_key
+    )
 
     if os.path.exists(index_path):
-        return FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+        try:
+            return FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+        except Exception:
+            pass # Om gamla filen bråkar, ignorera och bygg en ny
 
     if not os.path.exists(doc_dir) or not [f for f in os.listdir(doc_dir) if f.endswith('.md')]:
         return None
@@ -60,9 +73,15 @@ def init_vector_db():
     docs = loader.load()
     splits = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100).split_documents(docs)
     
-    vectorstore = FAISS.from_documents(splits, embeddings)
-    vectorstore.save_local(index_path) # Sparar för att spara minne till nästa gång
-    return vectorstore
+    # 2. Vår fälla! Fångar det dolda felet och visar det på skärmen
+    try:
+        vectorstore = FAISS.from_documents(splits, embeddings)
+        vectorstore.save_local(index_path) 
+        return vectorstore
+    except Exception as e:
+        st.error(f"⚠️ **Google nekade åtkomst! Här är den riktiga anledningen:**\n\n{str(e)}")
+        st.info("💡 **Tips för felsökning:**\n* Står det **API_KEY_INVALID**? Gå till Streamlit Secrets och kolla att din nyckel ligger exakt så här: `GOOGLE_API_KEY = \"AIza...\"` (behåll citattecknen!).\n* Står det **Quota exceeded** eller **429**? Då har du för många dokument för gratisversionen. Ta bort ett par stycken och försök igen!")
+        st.stop()
 
 # --- HUVUDLOGIK ---
 if google_api_key:
