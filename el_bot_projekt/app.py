@@ -28,6 +28,7 @@ def render_content(text):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
     
+    # Regex som fångar upp bildtaggar
     pattern = r'\[(?:VISA_BILD|BILD|VISABILD):\s*([^\]]+)\]'
     parts = re.split(pattern, text)
     
@@ -89,20 +90,32 @@ if hf_api_key:
         st.stop()
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
-    chat_model = ChatOpenAI(model="Qwen/Qwen2.5-7B-Instruct", api_key=hf_api_key, base_url="https://router.huggingface.co/v1", max_tokens=1000, temperature=0.3)
     
+    # Vi sänker temperaturen till 0.2 för att få mer korrekta svar men behålla flytet
+    chat_model = ChatOpenAI(
+        model="Qwen/Qwen2.5-7B-Instruct", 
+        api_key=hf_api_key, 
+        base_url="https://router.huggingface.co/v1", 
+        max_tokens=1500, 
+        temperature=0.2
+    )
+    
+    # --- UPPDATERAD SYSTEM PROMPT FÖR LOGIK OCH KORREKT SVENSKA ---
     system_prompt = (
-        "Du är en mänsklig, varm och ytterst pedagogisk expert och mentor inom el. "
-        "Ditt mål är att förklara elens fantastiska värld på ett utförligt, intressant och lättförståeligt sätt. "
-        "Använd gärna pedagogiska liknelser.\n\n"
-        "FAKTA OCH KÄLLOR:\n"
-        "1. Du MÅSTE i absolut första hand basera dina svar på den medföljande kontexten (dokumenten).\n"
-        "2. Om kontexten inte täcker hela frågan får du använda din egen expertkunskap. Prioritera alltid dokumenten.\n\n"
-        f"TILLGÄNGLIGA BILDER I DITT ARKIV: {img_list}\n"
+        "Du är en erfaren svensk el-expert och mentor. Din personlighet är lugn, logisk och ytterst professionell.\n\n"
+        "SPRÅKKRAV:\n"
+        "- Du MÅSTE svara på naturlig, korrekt svensk fackterminologi. Använd ALDRIG direktöversättningar från engelska.\n"
+        "- Exempel: Använd 'isolerade verktyg' (inte 'elskrämda'), 'spänningsprovare' (inte 'voltmätare'), 'gruppsäkring' (inte 'kretsbrytare').\n"
+        "- Skriv flytande och pedagogiskt, men undvik att krångla till det. Var rak och logisk.\n\n"
+        "SVARSRUTINER:\n"
+        "1. Prioritera ALLTID informationen i de bifogade dokumenten.\n"
+        "2. Om dokumenten inte räcker, använd din djupa kunskap för att ge ett säkert och logiskt svar.\n"
+        "3. Strukturera dina svar med rubriker och punktlistor för att göra dem lätta att läsa på en mobilskärm.\n\n"
+        f"TILLGÄNGLIGA BILDER: {img_list}\n"
         "BILDREGLER:\n"
-        "- Välj ut max 1-2 bilder som är direkt relevanta från listan ovan.\n"
-        "- Infoga bilden genom att skriva taggen [VISA_BILD: filnamn.jpg] exakt där den passar.\n\n"
-        "Kontext från dina dokument:\n{context}"
+        "- Välj ut de 1-2 mest relevanta bilderna för att förstärka din förklaring.\n"
+        "- Infoga dem med [VISA_BILD: filnamn.jpg] precis där de behövs i texten.\n\n"
+        "Kontext från dina expert-dokument:\n{context}"
     )
     
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
@@ -129,10 +142,10 @@ if hf_api_key:
         with st.chat_message("user", avatar=avatarer["user"]): st.write(user_query)
         
         with st.chat_message("assistant", avatar=avatarer["assistant"]):
-            # --- HÄR ÄR DIN NYA PEDAGOGISKA TEXT ---
             with st.spinner("Håller på och letar, grejar och fixar i expertkunskapen..."):
                 response = rag_chain.invoke({"input": user_query})
             
+            # Din obligatoriska varningsfras
             safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
             final_answer = safety_warning + response["answer"]
             
