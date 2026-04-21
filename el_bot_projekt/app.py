@@ -77,13 +77,11 @@ def get_available_images():
     return "Inga bilder"
 
 # --- FÖRBEREDELSER ---
-# Vi hämtar bildlistan tidigt så den garanterat finns
 img_list = get_available_images()
 
 # 4. Huvudlogik
 if hf_api_key:
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_api_key
-    
     vectorstore = init_vector_db()
     
     if vectorstore is None:
@@ -129,10 +127,12 @@ if hf_api_key:
     if user_query := st.chat_input("Ställ din fråga om elens fantastiska värld, så ska jag försöka förklara..."):
         st.session_state.messages.append({"role": "user", "content": user_query})
         with st.chat_message("user", avatar=avatarer["user"]): st.write(user_query)
+        
         with st.chat_message("assistant", avatar=avatarer["assistant"]):
-            response = rag_chain.invoke({"input": user_query})
+            # --- HÄR ÄR DIN NYA PEDAGOGISKA TEXT ---
+            with st.spinner("Håller på och letar, grejar och fixar i expertkunskapen..."):
+                response = rag_chain.invoke({"input": user_query})
             
-            # DIN TVINGANDE VARNINGSFRAS
             safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
             final_answer = safety_warning + response["answer"]
             
