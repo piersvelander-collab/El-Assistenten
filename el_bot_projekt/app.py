@@ -17,11 +17,9 @@ st.title("⚡ Din Pedagogiska El-Assistent")
 st.write("Hej! Jag är din guide i elens fantastiska värld. Fråga mig om installationer, teori eller regler.")
 
 # 2. Hantering av API-nyckel (Secrets för molnet, Sidebar för lokal test)
-# Vi kollar först om nyckeln finns sparad i Streamlits "Secrets" (TOML)
 if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
     hf_api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 else:
-    # Om inte, visar vi inmatningsfältet i sidomenyn som tidigare
     hf_api_key = st.sidebar.text_input("Klistra in din Hugging Face API-nyckel här:", type="password")
     st.sidebar.markdown("*För att appen ska fungera i molnet, lägg till nyckeln i 'Secrets' som TOML.*")
 
@@ -30,17 +28,14 @@ def render_content(text):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
     
-    # Regex som fångar upp bildtaggar
     pattern = r'\[(?:VISA_BILD|BILD|VISABILD):\s*([^\]]+)\]'
     parts = re.split(pattern, text)
     
     i = 0
     while i < len(parts):
-        # Visa vanlig text
         if parts[i].strip():
             st.write(parts[i].strip())
         
-        # Kontrollera om nästa del är ett bildfilnamn
         if i + 1 < len(parts):
             image_filename = parts[i+1].strip()
             image_path = os.path.join(image_dir, image_filename)
@@ -51,11 +46,41 @@ def render_content(text):
                 st.warning(f"⚠️ Hittade inte bild: {image_filename}")
         i += 2
 
-# --- DOKUMENT-LOGIK ---
+# --- DOKUMENT-LOGIK (UPPDATERAD MED ABSOLUT SÖKVÄG) ---
 @st.cache_resource
 def init_vector_db():
-    loader = DirectoryLoader('./dokument', glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
+    # Idiotsäker sökväg som tvingar koden att leta precis bredvid app.py
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    doc_dir = os.path.join(current_dir, "dokument")
+    
+    # Om mappen saknas på servern, skapar vi en tom mapp tillfälligt för att undvika krasch
+    if not os.path.exists(doc_dir):
+        os.makedirs(doc_dir, exist_ok=True)
+        st.warning("⚠️ Mappen 'dokument' saknades och har skapats. Lägg in dina .md-filer på GitHub!")
+
+    loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     docs = loader.load()
+    
+# --- DOKUMENT-LOGIK (NU HELT KRASCH-SÄKER) ---
+@st.cache_resource
+def init_vector_db():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    doc_dir = os.path.join(current_dir, "dokument")
+    
+    # 1. Skapa mappen automatiskt i molnet om den saknas
+    if not os.path.exists(doc_dir):
+        os.makedirs(doc_dir, exist_ok=True)
+        
+    # 2. Kolla om det faktiskt ligger några .md-filer i mappen
+    md_files = [f for f in os.listdir(doc_dir) if f.endswith('.md')]
+    
+    # 3. Om mappen är tom, avbryt i förtid så vi slipper FileNotFoundError
+    if not md_files:
+        return None
+
+    loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
+    docs = loader.load()
+    
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(docs)
     embeddings = HuggingFaceEmbeddings(model_name="paraphrase-multilingual-MiniLM-L12-v2")
@@ -72,13 +97,20 @@ def get_available_images():
 # 4. Huvudlogik
 if hf_api_key:
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_api_key
-    vectorstore = init_vector_db()
+    
+    with st.spinner("Letar efter dokument och startar motorn..."):
+        vectorstore = init_vector_db()
+        
+    # --- NY SÄKERHETSSPÄRR: Stoppa appen mjukt om dokument saknas ---
+    if vectorstore is None:
+        st.error("⚠️ **Systemet pausat: Inga dokument hittades!**\n\nAppen kan inte starta eftersom mappen `dokument` är tom eller saknas. Vänligen ladda upp din fil (t.ex. `14_vad_ar_en_sakring.md`) till GitHub i mappen `dokument`!")
+        st.stop() # Detta fryser appen snyggt utan röd kraschtext
+
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
     chat_model = ChatOpenAI(model="Qwen/Qwen2.5-7B-Instruct", api_key=hf_api_key, base_url="https://router.huggingface.co/v1", max_tokens=1000, temperature=0.3)
     
-    img_list = get_available_images()
+    # [Resten av din kod för img_list, system_prompt osv fortsätter som vanligt här under...]
     
-    # --- UPPDATERAD SYSTEM PROMPT (Inriktad på mänsklig pedagogik) ---
     system_prompt = (
         "Du är en mänsklig, varm och ytterst pedagogisk expert och mentor inom el. "
         "Ditt mål är att förklara elens fantastiska värld på ett utförligt, intressant och lättförståeligt sätt. "
@@ -97,7 +129,6 @@ if hf_api_key:
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
     rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
 
-    # Avatarer med fallback till emojis
     current_dir = os.path.dirname(os.path.abspath(__file__))
     user_icon_path = os.path.join(current_dir, "ikoner", "anvandare.png")
     bot_icon_path = os.path.join(current_dir, "ikoner", "bot.png")
@@ -119,7 +150,6 @@ if hf_api_key:
         with st.chat_message("assistant", avatar=avatarer["assistant"]):
             response = rag_chain.invoke({"input": user_query})
             
-            # DIN TVINGANDE VARNINGSFRAS
             safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
             final_answer = safety_warning + response["answer"]
             
