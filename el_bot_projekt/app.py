@@ -39,13 +39,6 @@ def render_content(text):
         else:
             img_path = os.path.join(image_dir, part.strip())
             if os.path.exists(img_path): st.image(img_path, use_container_width=True)
-
-# --- RESURSSNÅL DOKUMENT-LOGIK (Noll krascher) ---
-@st.cache_resource
-def init_vector_db():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    doc_dir = os.path.join(current_dir, "dokument")
-    index_path = os.path.join(current_dir, "faiss_index")
     
 # --- RESURSSNÅL DOKUMENT-LOGIK (Noll krascher) ---
 @st.cache_resource
@@ -54,9 +47,9 @@ def init_vector_db():
     doc_dir = os.path.join(current_dir, "dokument")
     index_path = os.path.join(current_dir, "faiss_index")
     
-    # 1. Vi byter till Googles allra nyaste inbäddningsmodell
+    # 1. Vi går tillbaka till Googles stabila standardmodell för inbäddningar
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004", 
+        model="models/embedding-001", 
         google_api_key=google_api_key
     )
 
@@ -73,14 +66,14 @@ def init_vector_db():
     docs = loader.load()
     splits = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100).split_documents(docs)
     
-    # 2. Vår fälla! Fångar det dolda felet och visar det på skärmen
+    # 2. Fällan ligger kvar för att fånga det riktiga felet
     try:
         vectorstore = FAISS.from_documents(splits, embeddings)
         vectorstore.save_local(index_path) 
         return vectorstore
     except Exception as e:
         st.error(f"⚠️ **Google nekade åtkomst! Här är den riktiga anledningen:**\n\n{str(e)}")
-        st.info("💡 **Tips för felsökning:**\n* Står det **API_KEY_INVALID**? Gå till Streamlit Secrets och kolla att din nyckel ligger exakt så här: `GOOGLE_API_KEY = \"AIza...\"` (behåll citattecknen!).\n* Står det **Quota exceeded** eller **429**? Då har du för många dokument för gratisversionen. Ta bort ett par stycken och försök igen!")
+        st.info("💡 **Tips för felsökning:**\n* Står det **API_KEY_INVALID**? Gå till Streamlit Secrets och kolla att din nyckel ligger exakt så här: `GOOGLE_API_KEY = \"AIza...\"`\n* Står det **Quota exceeded** eller **429**? Då har du för många dokument för gratisversionen.")
         st.stop()
 
 # --- HUVUDLOGIK ---
