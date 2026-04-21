@@ -83,4 +83,86 @@ def init_vector_db():
 
     try:
         vectorstore = None
-        batch_size = 20 # Skickar
+        batch_size = 20 # Skickar 20 textstycken i taget
+        
+        for i in range(0, len(splits), batch_size):
+            batch = splits[i : i + batch_size]
+            if vectorstore is None:
+                vectorstore = FAISS.from_documents(batch, embeddings)
+            else:
+                vectorstore.add_documents(batch)
+            
+            # Pausa i 1,5 sekund så Googles servrar hinner med
+            time.sleep(1.5) 
+
+        vectorstore.save_local(index_path) 
+        return vectorstore
+        
+    except Exception as e:
+        st.error(f"⚠️ Ett fel uppstod när dokumenten skulle analyseras:\n{str(e)}")
+        st.stop()
+
+# --- 5. HUVUDPROGRAM ---
+if google_api_key:
+    os.environ["GOOGLE_API_KEY"] = google_api_key
+    
+    with st.spinner("Startar motorn och läser in dina handböcker... (Detta tar någon minut första gången)"):
+        vectorstore = init_vector_db()
+    
+    chat_model = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash", 
+        google_api_key=google_api_key, 
+        temperature=0.0
+    )
+    
+    system_prompt = (
+        "Du är en logisk, strikt och professionell svensk el-mentor. Din viktigaste regel är SANNING.\n\n"
+        "REGLER:\n"
+        "1. ANVÄND ENDAST KONTEXTEN: Du får under inga omständigheter gissa. Svara bara om stödet finns i dokumenten.\n"
+        "2. OM SVAR SAKNAS: Svara EXAKT så här: 'Tyvärr kan jag inte svara på den frågan baserat på min nuvarande expertkunskap, men jag har förmedlat den vidare så att jag kan lära mig bättre till nästa gång.'\n"
+        "3. SPRÅK: Använd uteslutande korrekt svensk el-terminologi (t.ex. 'spänningsprovare', 'VP-rör', 'dvärgbrytare').\n"
+        "4. STRUKTUR: Svara i punktform med det absolut viktigaste (t.ex. säkerhet) allra högst upp.\n\n"
+        "Kontext från dina expert-dokument:\n{context}"
+    )
+    
+    prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    avatarer = {
+        "user": os.path.join(current_dir, "ikoner", "anvandare.png") if os.path.exists(os.path.join(current_dir, "ikoner", "anvandare.png")) else "👤",
+        "assistant": os.path.join(current_dir, "ikoner", "bot.png") if os.path.exists(os.path.join(current_dir, "ikoner", "bot.png")) else "🤖"
+    }
+
+    if "messages" not in st.session_state: 
+        st.session_state.messages = []
+        
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"], avatar=avatarer.get(msg["role"])): 
+            render_content(msg["content"])
+
+    if query := st.chat_input("Ställ din fråga om el..."):
+        st.session_state.messages.append({"role": "user", "content": query})
+        with st.chat_message("user", avatar=avatarer["user"]): 
+            st.write(query)
+        
+        with st.chat_message("assistant", avatar=avatarer["assistant"]):
+            with st.spinner("Håller på och letar, grejar och fixar i expertkunskapen..."):
+                if vectorstore:
+                    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+                    rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
+                    response = rag_chain.invoke({"input": query})
+                    res_text = response["answer"]
+                    
+                    if "Tyvärr kan jag inte svara" in res_text:
+                        log_missing_knowledge(query)
+                else:
+                    res_text = "Tyvärr kan jag inte svara på den frågan baserat på min nuvarande expertkunskap, men jag har förmedlat den vidare så att jag kan lära mig bättre till nästa gång."
+                    log_missing_knowledge(query)
+                
+                safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
+                full_res = safety_warning + res_text
+                
+                render_content(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res})
+else:
+    st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn för att starta assistenten.")
