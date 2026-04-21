@@ -14,165 +14,110 @@ from langchain_core.prompts import ChatPromptTemplate
 # --- 1. SIDKONFIGURATION ---
 st.set_page_config(page_title="El-Assistenten", page_icon="⚡", layout="centered")
 st.title("⚡ Din Pedagogiska El-Assistent")
-st.write("Välkommen! Jag är din guide i elens värld. Fråga mig om installationer, regler och teori.")
+st.write("Välkommen! Jag är din guide i elens värld.")
 
-# --- 2. API-NYCKEL (Hanterar både molnet och lokal körning) ---
+# --- 2. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     google_api_key = st.sidebar.text_input("Klistra in din Google API-nyckel här:", type="password")
-    st.sidebar.info("Hämta en gratis nyckel på Google AI Studio om du saknar en.")
 
 # --- 3. HJÄLPFUNKTIONER ---
 def log_missing_knowledge(query):
-    """Sparar frågor som assistenten inte kan svara på i en textfil."""
     with open("saknad_kunskap.txt", "a", encoding="utf-8") as f:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        f.write(f"[{timestamp}] Saknar info för: {query}\n")
+        f.write(f"[{datetime.now()}] Saknar info för: {query}\n")
 
 def render_content(text):
-    """Ritar ut text och letar efter bild-taggar för att visa bilder."""
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
-    
     pattern = r'\[(?:VISA_BILD|BILD):\s*([^\]]+)\]'
     parts = re.split(pattern, text)
-    
     for i, part in enumerate(parts):
         if i % 2 == 0:
-            if part.strip(): 
-                st.write(part.strip())
+            if part.strip(): st.write(part.strip())
         else:
             img_path = os.path.join(image_dir, part.strip())
-            if os.path.exists(img_path): 
-                st.image(img_path, use_container_width=True)
-            else:
-                st.warning(f"⚠️ Bilden '{part.strip()}' saknas i bild-mappen.")
+            if os.path.exists(img_path): st.image(img_path, use_container_width=True)
 
-# --- 4. DOKUMENT- OCH SÖKLOGIK ---
+# --- 4. DOKUMENT- OCH SÖKLOGIK (Super-försiktig version) ---
 @st.cache_resource
 def init_vector_db():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     doc_dir = os.path.join(current_dir, "dokument")
     index_path = os.path.join(current_dir, "faiss_index")
     
-    try:
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004", 
-            google_api_key=google_api_key
-        )
-    except Exception as e:
-        st.error("Kunde inte ansluta till Googles inbäddningsmodell. Kontrollera din API-nyckel.")
-        st.stop()
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/text-embedding-004", 
+        google_api_key=google_api_key
+    )
 
     if os.path.exists(index_path):
         try:
             return FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-        except Exception:
-            pass 
+        except: pass 
 
     if not os.path.exists(doc_dir) or not [f for f in os.listdir(doc_dir) if f.endswith('.md')]:
         return None
 
     loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     docs = loader.load()
-    splits = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100).split_documents(docs)
+    splits = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50).split_documents(docs)
     
-    if not splits:
-        return None
+    if not splits: return None
 
     try:
-        vectorstore = None
-        batch_size = 5 # MYCKET mindre portioner (5 åt gången istället för 20)
+        # Skapa första biten
+        vectorstore = FAISS.from_documents([splits[0]], embeddings)
         
-        # Skapa en laddningsmätare så du ser att den lever
-        progress_text = "Tuggar i sig dina handböcker... Vänligen vänta."
-        my_bar = st.progress(0, text=progress_text)
+        my_bar = st.progress(0, text="Analyserar dokument... Detta görs bara en gång.")
         
-        for i in range(0, len(splits), batch_size):
-            batch = splits[i : i + batch_size]
-            if vectorstore is None:
-                vectorstore = FAISS.from_documents(batch, embeddings)
-            else:
-                vectorstore.add_documents(batch)
+        # Mata in resten ETT STYCKE i taget för att undvika Timeout
+        for i in range(1, len(splits)):
+            vectorstore.add_documents([splits[i]])
             
-            # Uppdatera laddningsmätaren
-            progress = min(1.0, (i + batch_size) / len(splits))
-            my_bar.progress(progress, text=f"Laddar: {int(progress * 100)}%")
+            # Uppdatera mätaren
+            prog = i / len(splits)
+            my_bar.progress(prog, text=f"Laddar kunskap: {int(prog*100)}% (Pausar för att inte överbelasta Google)")
             
-            # Längre paus för att garantera att Google hinner andas
-            time.sleep(2.0) 
+            # Rejäl paus för att vara på säkra sidan (Gratis-API limit)
+            time.sleep(1.0) 
 
-        # Ta bort mätaren när vi är klara
         my_bar.empty()
-        
         vectorstore.save_local(index_path) 
         return vectorstore
         
     except Exception as e:
-        st.error(f"⚠️ Ett fel uppstod när dokumenten skulle analyseras:\n{str(e)}")
+        st.error(f"⚠️ Google Timeout! Vi försöker igen. Fel: {str(e)}")
+        st.info("Tips: Om detta händer ofta, testa att starta om appen om en stund.")
         st.stop()
 
-# --- 5. HUVUDPROGRAM ---
+# --- 5. CHAT ---
 if google_api_key:
     os.environ["GOOGLE_API_KEY"] = google_api_key
-    
     vectorstore = init_vector_db()
     
-    chat_model = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash", 
-        google_api_key=google_api_key, 
-        temperature=0.0
-    )
+    chat_model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=google_api_key, temperature=0.0)
     
-    system_prompt = (
-        "Du är en logisk, strikt och professionell svensk el-mentor. Din viktigaste regel är SANNING.\n\n"
-        "REGLER:\n"
-        "1. ANVÄND ENDAST KONTEXTEN: Du får under inga omständigheter gissa. Svara bara om stödet finns i dokumenten.\n"
-        "2. OM SVAR SAKNAS: Svara EXAKT så här: 'Tyvärr kan jag inte svara på den frågan baserat på min nuvarande expertkunskap, men jag har förmedlat den vidare så att jag kan lära mig bättre till nästa gång.'\n"
-        "3. SPRÅK: Använd uteslutande korrekt svensk el-terminologi (t.ex. 'spänningsprovare', 'VP-rör', 'dvärgbrytare').\n"
-        "4. STRUKTUR: Svara i punktform med det absolut viktigaste (t.ex. säkerhet) allra högst upp.\n\n"
-        "Kontext från dina expert-dokument:\n{context}"
-    )
-    
-    prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
-
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    avatarer = {
-        "user": os.path.join(current_dir, "ikoner", "anvandare.png") if os.path.exists(os.path.join(current_dir, "ikoner", "anvandare.png")) else "👤",
-        "assistant": os.path.join(current_dir, "ikoner", "bot.png") if os.path.exists(os.path.join(current_dir, "ikoner", "bot.png")) else "🤖"
-    }
-
-    if "messages" not in st.session_state: 
-        st.session_state.messages = []
-        
+    if "messages" not in st.session_state: st.session_state.messages = []
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"], avatar=avatarer.get(msg["role"])): 
-            render_content(msg["content"])
+        with st.chat_message(msg["role"]): render_content(msg["content"])
 
     if query := st.chat_input("Ställ din fråga om el..."):
         st.session_state.messages.append({"role": "user", "content": query})
-        with st.chat_message("user", avatar=avatarer["user"]): 
-            st.write(query)
+        with st.chat_message("user"): st.write(query)
         
-        with st.chat_message("assistant", avatar=avatarer["assistant"]):
-            with st.spinner("Håller på och letar, grejar och fixar i expertkunskapen..."):
+        with st.chat_message("assistant"):
+            with st.spinner("Letar i handböckerna..."):
                 if vectorstore:
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-                    rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-                    response = rag_chain.invoke({"input": query})
-                    res_text = response["answer"]
-                    
-                    if "Tyvärr kan jag inte svara" in res_text:
-                        log_missing_knowledge(query)
+                    prompt = ChatPromptTemplate.from_messages([
+                        ("system", "Du är en svensk el-mentor. Svara ENBART baserat på kontexten: {context}"),
+                        ("human", "{input}")
+                    ])
+                    chain = create_retrieval_chain(vectorstore.as_retriever(), create_stuff_documents_chain(chat_model, prompt))
+                    res = chain.invoke({"input": query})["answer"]
                 else:
-                    res_text = "Tyvärr kan jag inte svara på den frågan baserat på min nuvarande expertkunskap, men jag har förmedlat den vidare så att jag kan lära mig bättre till nästa gång."
-                    log_missing_knowledge(query)
+                    res = "Jag hittar inga dokument att svara utifrån."
                 
-                safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
-                full_res = safety_warning + res_text
-                
-                render_content(full_res)
-                st.session_state.messages.append({"role": "assistant", "content": full_res})
-else:
-    st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn för att starta assistenten.")
+                final_res = "**AI-bot: Kontakta ALLTID elansvarig innan arbete!**\n\n" + res
+                render_content(final_res)
+                st.session_state.messages.append({"role": "assistant", "content": final_res})
