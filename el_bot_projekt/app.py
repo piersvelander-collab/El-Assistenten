@@ -16,9 +16,14 @@ st.set_page_config(page_title="El-Assistenten", page_icon="⚡")
 st.title("⚡ Din Pedagogiska El-Assistent")
 st.write("Hej! Jag är din guide i elens fantastiska värld. Fråga mig om installationer, teori eller regler.")
 
-# 2. Sidomeny för API-nyckel
-hf_api_key = st.sidebar.text_input("Klistra in din Hugging Face API-nyckel här:", type="password")
-st.sidebar.markdown("*För att appen ska fungera krävs en nyckel från Hugging Face.*")
+# 2. Hantering av API-nyckel (Secrets för molnet, Sidebar för lokal test)
+# Vi kollar först om nyckeln finns sparad i Streamlits "Secrets" (TOML)
+if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
+    hf_api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
+else:
+    # Om inte, visar vi inmatningsfältet i sidomenyn som tidigare
+    hf_api_key = st.sidebar.text_input("Klistra in din Hugging Face API-nyckel här:", type="password")
+    st.sidebar.markdown("*För att appen ska fungera i molnet, lägg till nyckeln i 'Secrets' som TOML.*")
 
 # --- RENDERARE FÖR TEXT OCH BILDER ---
 def render_content(text):
@@ -73,7 +78,7 @@ if hf_api_key:
     
     img_list = get_available_images()
     
-    # --- UPPDATERAD SYSTEM PROMPT ---
+    # --- UPPDATERAD SYSTEM PROMPT (Inriktad på mänsklig pedagogik) ---
     system_prompt = (
         "Du är en mänsklig, varm och ytterst pedagogisk expert och mentor inom el. "
         "Ditt mål är att förklara elens fantastiska värld på ett utförligt, intressant och lättförståeligt sätt. "
@@ -92,7 +97,7 @@ if hf_api_key:
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
     rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
 
-    # Avatarer med fallback
+    # Avatarer med fallback till emojis
     current_dir = os.path.dirname(os.path.abspath(__file__))
     user_icon_path = os.path.join(current_dir, "ikoner", "anvandare.png")
     bot_icon_path = os.path.join(current_dir, "ikoner", "bot.png")
@@ -121,4 +126,4 @@ if hf_api_key:
             render_content(final_answer)
             st.session_state.messages.append({"role": "assistant", "content": final_answer})
 else:
-    st.info("👈 Klistra in API-nyckel till vänster!")
+    st.info("👈 Vänligen konfigurera din API-nyckel i Streamlit Secrets (TOML) eller i sidomenyn!")
