@@ -47,9 +47,9 @@ def init_vector_db():
     doc_dir = os.path.join(current_dir, "dokument")
     index_path = os.path.join(current_dir, "faiss_index")
     
-    # 1. Vi går tillbaka till Googles stabila standardmodell för inbäddningar
+   # Vi använder Googles allra nyaste inbäddningsmodell
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
+        model="models/text-embedding-004", 
         google_api_key=google_api_key
     )
 
