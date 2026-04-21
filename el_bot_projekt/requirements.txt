@@ -1,8 +1,7 @@
 streamlit
 langchain-community
 langchain-text-splitters
-langchain-openai
+langchain-google-genai
 langchain-classic
-sentence-transformers
 faiss-cpu
 docx2txt
