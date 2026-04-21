@@ -61,11 +61,26 @@ def init_vector_db():
     loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     docs = loader.load()
     
-    # Om det inte finns några dokument inuti mappen, avbryt för att undvika följdfel
-    if not docs:
-        st.error("⚠️ Inga .md-filer hittades i mappen 'dokument'. Appen kan inte svara på frågor förrän dokument är uppladdade.")
-        st.stop()
+# --- DOKUMENT-LOGIK (NU HELT KRASCH-SÄKER) ---
+@st.cache_resource
+def init_vector_db():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    doc_dir = os.path.join(current_dir, "dokument")
+    
+    # 1. Skapa mappen automatiskt i molnet om den saknas
+    if not os.path.exists(doc_dir):
+        os.makedirs(doc_dir, exist_ok=True)
         
+    # 2. Kolla om det faktiskt ligger några .md-filer i mappen
+    md_files = [f for f in os.listdir(doc_dir) if f.endswith('.md')]
+    
+    # 3. Om mappen är tom, avbryt i förtid så vi slipper FileNotFoundError
+    if not md_files:
+        return None
+
+    loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
+    docs = loader.load()
+    
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(docs)
     embeddings = HuggingFaceEmbeddings(model_name="paraphrase-multilingual-MiniLM-L12-v2")
@@ -82,11 +97,19 @@ def get_available_images():
 # 4. Huvudlogik
 if hf_api_key:
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_api_key
-    vectorstore = init_vector_db()
+    
+    with st.spinner("Letar efter dokument och startar motorn..."):
+        vectorstore = init_vector_db()
+        
+    # --- NY SÄKERHETSSPÄRR: Stoppa appen mjukt om dokument saknas ---
+    if vectorstore is None:
+        st.error("⚠️ **Systemet pausat: Inga dokument hittades!**\n\nAppen kan inte starta eftersom mappen `dokument` är tom eller saknas. Vänligen ladda upp din fil (t.ex. `14_vad_ar_en_sakring.md`) till GitHub i mappen `dokument`!")
+        st.stop() # Detta fryser appen snyggt utan röd kraschtext
+
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
     chat_model = ChatOpenAI(model="Qwen/Qwen2.5-7B-Instruct", api_key=hf_api_key, base_url="https://router.huggingface.co/v1", max_tokens=1000, temperature=0.3)
     
-    img_list = get_available_images()
+    # [Resten av din kod för img_list, system_prompt osv fortsätter som vanligt här under...]
     
     system_prompt = (
         "Du är en mänsklig, varm och ytterst pedagogisk expert och mentor inom el. "
