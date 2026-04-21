@@ -21,14 +21,12 @@ if "HUGGINGFACEHUB_API_TOKEN" in st.secrets:
     hf_api_key = st.secrets["HUGGINGFACEHUB_API_TOKEN"]
 else:
     hf_api_key = st.sidebar.text_input("Klistra in din Hugging Face API-nyckel här:", type="password")
-    st.sidebar.markdown("*För att appen ska fungera i molnet, lägg till nyckeln i 'Secrets' som TOML.*")
 
 # --- RENDERARE FÖR TEXT OCH BILDER ---
 def render_content(text):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
     
-    # Regex som fångar upp bildtaggar
     pattern = r'\[(?:VISA_BILD|BILD|VISABILD):\s*([^\]]+)\]'
     parts = re.split(pattern, text)
     
@@ -86,36 +84,37 @@ if hf_api_key:
     vectorstore = init_vector_db()
     
     if vectorstore is None:
-        st.warning("⚠️ Inga dokument (.md) hittades i mappen 'dokument'. Ladda upp filer för att aktivera experten!")
+        st.warning("⚠️ Inga dokument hittades. Ladda upp .md-filer till mappen 'dokument'!")
         st.stop()
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
-    
-    # Vi sänker temperaturen till 0.2 för att få mer korrekta svar men behålla flytet
     chat_model = ChatOpenAI(
         model="Qwen/Qwen2.5-7B-Instruct", 
         api_key=hf_api_key, 
         base_url="https://router.huggingface.co/v1", 
         max_tokens=1500, 
-        temperature=0.2
+        temperature=0.1 # Sänkt temperatur för maximal korrekthet
     )
     
-    # --- UPPDATERAD SYSTEM PROMPT FÖR LOGIK OCH KORREKT SVENSKA ---
+    # --- STRÄNG SYSTEM PROMPT FÖR KORREKT SVENSKA OCH LOGIK ---
     system_prompt = (
-        "Du är en erfaren svensk el-expert och mentor. Din personlighet är lugn, logisk och ytterst professionell.\n\n"
-        "SPRÅKKRAV:\n"
-        "- Du MÅSTE svara på naturlig, korrekt svensk fackterminologi. Använd ALDRIG direktöversättningar från engelska.\n"
-        "- Exempel: Använd 'isolerade verktyg' (inte 'elskrämda'), 'spänningsprovare' (inte 'voltmätare'), 'gruppsäkring' (inte 'kretsbrytare').\n"
-        "- Skriv flytande och pedagogiskt, men undvik att krångla till det. Var rak och logisk.\n\n"
-        "SVARSRUTINER:\n"
-        "1. Prioritera ALLTID informationen i de bifogade dokumenten.\n"
-        "2. Om dokumenten inte räcker, använd din djupa kunskap för att ge ett säkert och logiskt svar.\n"
-        "3. Strukturera dina svar med rubriker och punktlistor för att göra dem lätta att läsa på en mobilskärm.\n\n"
+        "Du är en erfaren svensk el-expert och pedagogisk mentor. Du ska svara logiskt, proffsigt och på perfekt svenskt fackspråk.\n\n"
+        "FÖRBJUDNA ORD (Använd ALDRIG dessa):\n"
+        "- 'Stolthöjdssäkerhet' (Använd: Stabil stege eller fallskydd)\n"
+        "- 'Ledningssprängar' (Använd: Kabelklammer eller fästmaterial)\n"
+        "- 'Strömförbindelser' (Använd: Kortslutning eller felkoppling)\n"
+        "- 'Elmask' eller 'Elskrämda kläder' (Använd: Skyddsutrustning eller isolerade kläder)\n"
+        "- 'Permittering' (Använd: Tillstånd eller anmälan)\n"
+        "- 'Tryck' när du pratar om el (Använd: Spänning)\n"
+        "- 'Koppna' (Använd: Koppla eller ansluta)\n\n"
+        "SVARSRUTIN OCH STRUKTUR:\n"
+        "1. Börja alltid med det viktigaste: Säkerhetsvarningen och en kort sammanfattning.\n"
+        "2. Använd rubriker och punktlistor. Svaret ska flyta logiskt uppifrån och ned så att användaren kan börja läsa direkt utan att scrolla.\n"
+        "3. Använd vattenslangsliknelsen endast om det hjälper pedagogiken.\n"
+        "4. Prioritera dokumenten men fyll på med din expertis om det behövs för att svaret ska bli mänskligt och korrekt.\n\n"
         f"TILLGÄNGLIGA BILDER: {img_list}\n"
-        "BILDREGLER:\n"
-        "- Välj ut de 1-2 mest relevanta bilderna för att förstärka din förklaring.\n"
-        "- Infoga dem med [VISA_BILD: filnamn.jpg] precis där de behövs i texten.\n\n"
-        "Kontext från dina expert-dokument:\n{context}"
+        "BILDREGLER: Infoga max 2 relevanta bilder med [VISA_BILD: filnamn.jpg].\n\n"
+        "Kontext:\n{context}"
     )
     
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
@@ -123,12 +122,9 @@ if hf_api_key:
 
     # Avatarer
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    user_icon_path = os.path.join(current_dir, "ikoner", "anvandare.png")
-    bot_icon_path = os.path.join(current_dir, "ikoner", "bot.png")
-
     avatarer = {
-        "user": user_icon_path if os.path.exists(user_icon_path) else "👤",
-        "assistant": bot_icon_path if os.path.exists(bot_icon_path) else "🤖"
+        "user": os.path.join(current_dir, "ikoner", "anvandare.png") if os.path.exists(os.path.join(current_dir, "ikoner", "anvandare.png")) else "👤",
+        "assistant": os.path.join(current_dir, "ikoner", "bot.png") if os.path.exists(os.path.join(current_dir, "ikoner", "bot.png")) else "🤖"
     }
 
     if "messages" not in st.session_state: st.session_state.messages = []
@@ -137,7 +133,7 @@ if hf_api_key:
         with st.chat_message(msg["role"], avatar=avatarer.get(msg["role"])):
             render_content(msg["content"])
 
-    if user_query := st.chat_input("Ställ din fråga om elens fantastiska värld, så ska jag försöka förklara..."):
+    if user_query := st.chat_input("Ställ din fråga..."):
         st.session_state.messages.append({"role": "user", "content": user_query})
         with st.chat_message("user", avatar=avatarer["user"]): st.write(user_query)
         
@@ -145,11 +141,10 @@ if hf_api_key:
             with st.spinner("Håller på och letar, grejar och fixar i expertkunskapen..."):
                 response = rag_chain.invoke({"input": user_query})
             
-            # Din obligatoriska varningsfras
             safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
             final_answer = safety_warning + response["answer"]
             
             render_content(final_answer)
             st.session_state.messages.append({"role": "assistant", "content": final_answer})
 else:
-    st.info("👈 Vänligen konfigurera din API-nyckel i Streamlit Secrets (TOML) eller i sidomenyn!")
+    st.info("👈 Konfigurera API-nyckeln i Secrets (TOML)!")
