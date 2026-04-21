@@ -49,7 +49,7 @@ def render_content(text):
             else:
                 st.warning(f"⚠️ Bilden '{part.strip()}' saknas i bild-mappen.")
 
-# --- 4. DOKUMENT- OCH SÖKLOGIK (Med inbyggd paus för Googles API) ---
+# --- 4. DOKUMENT- OCH SÖKLOGIK ---
 @st.cache_resource
 def init_vector_db():
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -69,7 +69,7 @@ def init_vector_db():
         try:
             return FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
         except Exception:
-            pass # Bygg en ny om den gamla är korrupt
+            pass 
 
     if not os.path.exists(doc_dir) or not [f for f in os.listdir(doc_dir) if f.endswith('.md')]:
         return None
@@ -83,7 +83,11 @@ def init_vector_db():
 
     try:
         vectorstore = None
-        batch_size = 20 # Skickar 20 textstycken i taget
+        batch_size = 5 # MYCKET mindre portioner (5 åt gången istället för 20)
+        
+        # Skapa en laddningsmätare så du ser att den lever
+        progress_text = "Tuggar i sig dina handböcker... Vänligen vänta."
+        my_bar = st.progress(0, text=progress_text)
         
         for i in range(0, len(splits), batch_size):
             batch = splits[i : i + batch_size]
@@ -92,9 +96,16 @@ def init_vector_db():
             else:
                 vectorstore.add_documents(batch)
             
-            # Pausa i 1,5 sekund så Googles servrar hinner med
-            time.sleep(1.5) 
+            # Uppdatera laddningsmätaren
+            progress = min(1.0, (i + batch_size) / len(splits))
+            my_bar.progress(progress, text=f"Laddar: {int(progress * 100)}%")
+            
+            # Längre paus för att garantera att Google hinner andas
+            time.sleep(2.0) 
 
+        # Ta bort mätaren när vi är klara
+        my_bar.empty()
+        
         vectorstore.save_local(index_path) 
         return vectorstore
         
@@ -106,8 +117,7 @@ def init_vector_db():
 if google_api_key:
     os.environ["GOOGLE_API_KEY"] = google_api_key
     
-    with st.spinner("Startar motorn och läser in dina handböcker... (Detta tar någon minut första gången)"):
-        vectorstore = init_vector_db()
+    vectorstore = init_vector_db()
     
     chat_model = ChatGoogleGenerativeAI(
         model="gemini-1.5-flash", 
