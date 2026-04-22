@@ -38,12 +38,12 @@ st.markdown("""
         background-color: #0d014d !important; 
     }
     
-    /* Vit text för allmän läsbarhet */
-    p, li, label, .stMarkdown, div[data-testid="stChatMessageContent"] { 
+    /* Tvingar ALL text och ALLA rubriker (h1-h6) att bli kritvita för läsbarhet */
+    p, li, label, h1, h2, h3, h4, h5, h6, .stMarkdown, div[data-testid="stChatMessageContent"] { 
         color: #ffffff !important; 
     }
     
-    /* Isolerab-grön rubrik (Pierfekta-stilen) */
+    /* Isolerab-grön rubrik (Pierfekta-stilen - denna vinner över den vita regeln ovan) */
     .pierfekta-header { 
         color: #82e300 !important; 
         font-weight: bold; 
