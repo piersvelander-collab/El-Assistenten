@@ -3,7 +3,7 @@ import os
 import re
 import base64
 import time
-from PIL import Image  # <-- NYTT: Bibliotek för att kunna ladda in er logga som ikon
+from PIL import Image
 import streamlit.components.v1 as components
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -17,16 +17,12 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(current_dir, "saknade_fragor.txt")
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 
-# Försök ladda Isolerab-loggan för att trycka in i fliken och mobiltelefonen
 try:
     app_icon = Image.open(logo_path)
 except:
-    app_icon = "⚡"  # Reserv-ikon om loggan inte skulle hittas
+    app_icon = "⚡"
 
-# Här döper vi fliken, föreslår "El-Assistenten" vid nedladdning, och sätter ikonen st.set_page_config(
-    page_title="El-Assistenten", 
-    page_icon=app_icon, 
-    layout="centered"
+st.set_page_config(page_title="El-Assistenten", page_icon=app_icon, layout="centered")
 
 # --- 2. DESIGN OCH FÄRGSCHEMA ---
 st.markdown("""
@@ -43,7 +39,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DÖRRVAKTEN & SIDOMENYN (ADMIN) ---
+# --- 3. DÖRRVAKTEN & SIDOMENYN (ADMIN OCH SJÄLVINLÄRNING) ---
 with st.sidebar:
     st.markdown("### 🔒 Personal-inloggning")
     admin_password = st.text_input("Lösenord:", type="password")
@@ -53,16 +49,67 @@ with st.sidebar:
         is_admin = True
         st.success("✅ Inloggad som Pierfekt Admin")
         st.divider()
-        st.header("📝 Kunskaps-logg")
+        
+        # Läs in loggboken
+        log_lines = []
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
-                log_content = f.read()
-            st.text_area("Behöver skrivas manualer för:", log_content, height=200)
-            if st.button("Rensa logg"):
+                log_lines = f.readlines()
+        
+        # Rensa bort bindestreck för listan
+        unanswered_qs = [line.strip().replace("- ", "") for line in log_lines if line.strip()]
+        
+        st.header("📝 Kunskaps-logg")
+        if unanswered_qs:
+            st.text_area("Frågor som saknar svar:", "\n".join(unanswered_qs), height=150)
+            if st.button("Rensa hela loggen"):
                 os.remove(log_path)
                 st.rerun()
         else:
             st.info("Inga frågor loggade ännu.")
+            
+        st.divider()
+        
+        # --- NYHET: SJÄLVINLÄRNING ---
+        st.header("🧠 Lär Assistenten")
+        if unanswered_qs:
+            selected_q = st.selectbox("Välj en fråga att besvara:", unanswered_qs)
+            new_answer = st.text_area(f"Skriv Isolerabs svar på '{selected_q}':", height=150, help="Svara tydligt. Detta trycks in i botens minne direkt.")
+            
+            if st.button("Generera och Lär in!"):
+                if new_answer.strip():
+                    try:
+                        # 1. Bygg ihop texten till ett snyggt dokument
+                        md_content = f"# Svar gällande: {selected_q}\n\n{new_answer}"
+                        
+                        # 2. Tryck in detta i botens "Hjärna" (FAISS) direkt i minnet
+                        if 'vectorstore' in st.session_state:
+                            st.session_state.vectorstore.add_texts([md_content], metadatas=[{"source": "admin_inmatning"}])
+                        else:
+                            st.error("Fel: Databasen är inte laddad än.")
+                            
+                        # 3. Spara ner texten som en fil i bakgrunden (ifall du vill hämta den sen)
+                        docs_dir = os.path.join(current_dir, "dokument")
+                        if not os.path.exists(docs_dir): os.makedirs(docs_dir)
+                        filename = f"inlart_fakta_{int(time.time())}.md"
+                        with open(os.path.join(docs_dir, filename), "w", encoding="utf-8") as f:
+                            f.write(md_content)
+                        
+                        # 4. Radera just denna fråga från loggen
+                        unanswered_qs.remove(selected_q)
+                        with open(log_path, "w", encoding="utf-8") as f:
+                            for q in unanswered_qs: f.write(f"- {q}\n")
+                                
+                        st.success(f"✅ Pierfekt! Jag kan nu svara på detta.\n(Tips: Kopiera texten till din GitHub senare för att spara den för evigt!)")
+                        time.sleep(3)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Kunde inte lära in: {e}")
+                else:
+                    st.warning("Du måste skriva ett svar i rutan!")
+        else:
+            st.success("Loggen är tom! Inget nytt att lära ut just nu.")
+            
         st.divider()
         st.header("🛠 Felsökning")
         if st.checkbox("Visa hittade filer (Debug)"):
@@ -80,7 +127,6 @@ else:
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
 # --- 5. RENDERERA HEADER ---
-logo_path = os.path.join(current_dir, "bilder", "logo.png")
 if os.path.exists(logo_path):
     st.image(logo_path, width=150)
 st.markdown("<h1 class='pierfekta-header'>ISOLERABs Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
@@ -108,13 +154,16 @@ def render_content(text):
 
 # --- 7. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
-try:
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-    vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-except Exception as e:
-    if is_admin: st.error(f"Kunde inte ladda expertkunskap: {e}")
-    else: st.error("⚠️ Systemet uppdateras, vänligen försök igen om en stund.")
-    st.stop()
+
+# Vi lägger vectorstore i session_state så den bevarar det vi "lär" den under sessionen!
+if 'vectorstore' not in st.session_state:
+    try:
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+        st.session_state.vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+    except Exception as e:
+        if is_admin: st.error(f"Kunde inte ladda expertkunskap: {e}")
+        else: st.error("⚠️ Systemet uppdateras, vänligen försök igen om en stund.")
+        st.stop()
 
 chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
 
@@ -140,7 +189,7 @@ for msg in st.session_state.messages:
     avatar = avatar_user if msg["role"] == "user" else avatar_bot
     with st.chat_message(msg["role"], avatar=avatar): render_content(msg["content"])
 
-# --- KAMERA-FUNKTION MED AUTOMATISK OMFÖRSÖK ---
+# --- KAMERA-FUNKTION ---
 with st.expander("📸 Färg-Hjälpen (Titta på kablar med kameran)"):
     st.warning("⚠️ **LIVSVIKTIGT:** Jag är en AI. Kamerablixt, skuggor och smuts kan få mig att se fel färg. Använd ALDRIG mitt svar som bevis på vad en kabel gör. Du MÅSTE alltid kontrollmäta!")
     cam_photo = st.camera_input("Ta en bild på dosan")
@@ -199,7 +248,7 @@ with st.expander("📸 Färg-Hjälpen (Titta på kablar med kameran)"):
                             st.error("Kunde inte tyda bilden just nu. Försök igen.")
                             break
 
-# --- CHATT-INMATNING MED AUTOMATISK OMFÖRSÖK ---
+# --- CHATT-INMATNING ---
 if query := st.chat_input("Ställ din fråga..."):
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=avatar_user): st.write(query)
@@ -211,7 +260,8 @@ if query := st.chat_input("Ställ din fråga..."):
             
             while försök < max_försök and not lyckades:
                 try:
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+                    # Använd nu den session_state-lagrade databasen som innehåller det du precis lärt den!
+                    retriever = st.session_state.vectorstore.as_retriever(search_kwargs={"k": 3})
                     chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                     response = chain.invoke({"input": query})
                     res_text = response["answer"]
