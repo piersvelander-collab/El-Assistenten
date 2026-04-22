@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import re
+import streamlit.components.v1 as components
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
@@ -86,8 +87,11 @@ st.write("Välkommen! Jag är din guide i elens värld. Fråga mig om installati
 
 # --- 5. HJÄLPFUNKTIONER ---
 def render_content(text):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
-    pattern = r'\[(?:VISA_BILD|BILD):\s*([^\]]+)\]'
+    
+    # Letar efter antingen bilder eller SCHEMA-taggar
+    pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
     parts = re.split(pattern, text)
     
     for i, part in enumerate(parts):
@@ -96,11 +100,26 @@ def render_content(text):
                 highlighted_text = part.strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>")
                 st.markdown(highlighted_text, unsafe_allow_html=True)
         else:
-            img_path = os.path.join(image_dir, part.strip())
-            if os.path.exists(img_path): 
-                st.image(img_path, use_container_width=True)
+            part = part.strip()
+            # Om det är en bildfil (slutar på .png, .jpg etc)
+            if part.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                img_path = os.path.join(image_dir, part)
+                if os.path.exists(img_path): 
+                    st.image(img_path, use_container_width=True)
+                else:
+                    st.warning(f"⚠️ Bilden '{part}' saknas.")
+            # Om det är ett Mermaid-schema (kod)
             else:
-                st.warning(f"⚠️ Bilden '{part.strip()}' saknas i bild-mappen.")
+                mermaid_html = f"""
+                <div class="mermaid">
+                {part}
+                </div>
+                <script type="module">
+                import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
+                </script>
+                """
+                components.html(mermaid_html, height=400)
 
 # --- 6. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
@@ -131,8 +150,9 @@ system_prompt = (
         "REGLER:\n"
         "1. ANVÄND ENDAST KONTEXTEN: Svara bara om stödet finns i de bifogade dokumenten.\n"
         "2. OM SVAR SAKNAS: Svara att du inte kan svara baserat på din nuvarande expertkunskap.\n"
-        "3. SPRÅK: Använd uteslutande korrekt svensk el-terminologi (spänningsprovare, dvärgbrytare etc.).\n"
-        "4. STRUKTUR: Svara i punktform med säkerhetsföreskrifter allra högst upp.\n\n"
+        "3. SPRÅK: Använd uteslutande korrekt svensk el-terminologi.\n"
+        "4. STRUKTUR: Svara i punktform med säkerhetsföreskrifter allra högst upp.\n"
+        "5. VISUALISERING: Om användaren ber dig 'rita', 'visa ett schema' eller 'förklara visuellt', rita ett diagram med Mermaid.js-syntax. Kapsla in hela din Mermaid-kod EXAKT så här: [SCHEMA: din_mermaid_kod_här]\n\n"
         "Expertkunskap:\n{context}"
 )
 
