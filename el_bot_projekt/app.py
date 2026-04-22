@@ -14,7 +14,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. API-NYCKEL (Smarta moln-versionen är tillbaka!) ---
+# --- 2. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
@@ -24,7 +24,7 @@ if not google_api_key:
     st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn.")
     st.stop()
 
-# Aktivera nyckeln för hela programmet
+# Aktivera nyckeln i bakgrunden
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
 # --- 3. ANPASSAD STYLING (CSS) ---
@@ -71,19 +71,12 @@ st.markdown("""
 current_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 
+# Använder Streamlits inbyggda funktion för att slippa fula brutna ikoner
 if os.path.exists(logo_path):
-    st.markdown(f"""
-        <div class="brand-header">
-            <img src="data:image/png;base64,{st.image(logo_path).data}" alt="Isolerab Logo">
-            <h1>ISOLERAB El-Assistent</h1>
-        </div>
-    """, unsafe_allow_html=True)
+    st.image(logo_path, width=150, use_container_width=False)
+    st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
 else:
-    st.markdown("""
-        <div class="brand-header">
-            <h1>ISOLERAB El-Assistent</h1>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
 
 st.write("Välkommen! Jag är din guide i elens värld. Fråga mig om installationer, regler och teori.")
 
@@ -108,8 +101,10 @@ def render_content(text):
 # --- 6. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
 try:
+    # RÄTTNING 1: Ger nyckeln direkt till sökmotorn
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001"
+        model="models/gemini-embedding-001",
+        google_api_key=google_api_key
     )
     vectorstore = FAISS.load_local(
         index_path, 
@@ -122,8 +117,10 @@ except Exception as e:
     st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
     st.stop()
 
+# RÄTTNING 2: Ger nyckeln direkt till chatthjärnan
 chat_model = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash", 
+    google_api_key=google_api_key,
     temperature=0.0
 )
 
