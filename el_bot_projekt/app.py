@@ -126,31 +126,46 @@ for msg in st.session_state.messages:
     avatar = avatar_user if msg["role"] == "user" else avatar_bot
     with st.chat_message(msg["role"], avatar=avatar): render_content(msg["content"])
 
-# --- NYHET: KAMERA-FUNKTION (FÄRG-HJÄLPEN) ---
+# --- NYHET: KAMERA-FUNKTION MED FÄRGBLINDHETS-FOKUS ---
 with st.expander("📸 Färg-Hjälpen (Titta på kablar med kameran)"):
     st.warning("⚠️ **LIVSVIKTIGT:** Jag är en AI. Kamerablixt, skuggor och smuts kan få mig att se fel färg. Använd ALDRIG mitt svar som bevis på vad en kabel gör. Du MÅSTE alltid kontrollmäta!")
     cam_photo = st.camera_input("Ta en bild på dosan")
     
     if cam_photo:
         if st.button("Analysera färgerna i bilden"):
-            with st.spinner("Granskar bilden..."):
+            with st.spinner("Granskar bilden noggrant..."):
                 try:
                     img_b64 = base64.b64encode(cam_photo.getvalue()).decode()
                     img_data = f"data:image/jpeg;base64,{img_b64}"
                     
+                    # Den nya, extremt specifika instruktionen för färgtolkning
+                    vision_prompt = """
+                    Du agerar nu som 'färg-tolk' åt en färgblind elektriker. Titta mycket noggrant på kablarna i bilden.
+                    Du får INTE bara lista färgerna du ser. Du MÅSTE beskriva VILKEN kabel som har VILKEN färg baserat på dess placering i bilden (t.ex. 'Kabeln längst till vänster är brun', 'Kabeln som hänger ner i mitten är blå', 'Kabeln uppe till höger är grå').
+                    
+                    Var extremt uppmärksam på följande färgkombinationer som är svåra att urskilja vid färgblindhet:
+                    - Rött, Grönt och Brunt (blandas ofta ihop)
+                    - Lila och Blått
+                    - Rosa, Grått och Grönt
+                    - Gult och Blått
+                    
+                    Beskriv positionerna och färgerna strukturerat och tydligt. 
+                    Avsluta alltid med en skarp säkerhetsvarning om att smuts, ålder och kamerans blixt/skuggor kan luras, och att färgen ALDRIG är en garanti för ledarens funktion. Man måste alltid kontrollmäta!
+                    """
+                    
                     vision_msg = HumanMessage(content=[
-                        {"type": "text", "text": "Du är elektriker-assistent. Titta på denna bild av elkablar. Vilka färger kan du urskilja på kablarnas isolering? Svara mycket kort och tydligt. Avsluta med en stark varning om att smuts/ljus kan lura ögat och att de alltid måste mäta för att veta funktionen."},
+                        {"type": "text", "text": vision_prompt},
                         {"type": "image_url", "image_url": {"url": img_data}}
                     ])
                     
                     vision_res = chat_model.invoke([vision_msg])
                     
-                    st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för färganalys*"})
+                    st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för detaljerad färganalys och positionering.*"})
                     st.session_state.messages.append({"role": "assistant", "content": vision_res.content})
                     st.rerun()
                 except Exception as e:
                     if is_admin: st.error(f"Bildfel: {e}")
-                    else: st.error("Kunde inte tyda bilden just nu.")
+                    else: st.error("Kunde inte tyda bilden just nu. Försök igen.")
 
 # --- CHATT-INMATNING ---
 if query := st.chat_input("Ställ din fråga..."):
