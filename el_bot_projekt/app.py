@@ -32,8 +32,13 @@ st.markdown("""
 <style>
     .stApp {
         background-color: #0d014d;
-        color: white;
     }
+    
+    /* TVINGAR ALL TEXT ATT BLI VIT */
+    p, li, .stMarkdown, div[data-testid="stChatMessageContent"] {
+        color: #ffffff !important;
+    }
+    
     .brand-header {
         display: flex;
         align-items: center;
@@ -48,12 +53,12 @@ st.markdown("""
     }
     .brand-header h1 {
         margin: 0;
-        color: #82e300;
+        color: #82e300 !important;
         font-size: 1.8em;
     }
     .stTextInput > div > div > input {
         background-color: rgba(255, 255, 255, 0.1);
-        color: white;
+        color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
     .stTextInput > div > div > input:focus {
@@ -61,7 +66,7 @@ st.markdown("""
         box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25);
     }
     .highlight {
-        color: #82e300;
+        color: #82e300 !important;
         font-weight: bold;
     }
 </style>
@@ -115,7 +120,6 @@ except Exception as e:
     st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
     st.stop()
 
-# --- UPPRGRADERAD AI-HJÄRNA TILL 2.5 ---
 chat_model = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash", 
     google_api_key=google_api_key,
