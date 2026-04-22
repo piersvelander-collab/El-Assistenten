@@ -179,7 +179,6 @@ if 'quiz_show_exp' not in st.session_state: st.session_state.quiz_show_exp = Fal
 if 'quiz_selected' not in st.session_state: st.session_state.quiz_selected = None
 
 # Frågorna (Du kan lägga till fler här i samma format!)
-# --- BYT UT HELA DITT BEFINTLIGA quiz_data MOT DETTA ---
 quiz_data = [
     # KATEGORI 1: Säkerhet, Asbest & Miljö
     {"q": "Vilket år totalförbjöds asbest i Sverige?", "opts": ["1972", "1982", "1992"], "ans": "1982", "exp": "Asbest förbjöds 1982. Hus byggda eller renoverade före detta år är alltid en riskzon."},
@@ -360,7 +359,7 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
             lyckades = False
             while försök < max_försök and not lyckades:
                 try:
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+                    retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
                     chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                     response = chain.invoke({"input": query})
                     res_text = response["answer"]
