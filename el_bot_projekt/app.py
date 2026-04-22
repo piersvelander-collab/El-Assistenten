@@ -2,7 +2,8 @@ import streamlit as st
 import os
 import re
 import base64
-import time  # NYTT: Importerar tidsfunktionen för att kunna pausa i 5 sekunder
+import time
+from PIL import Image  # <-- NYTT: Bibliotek för att kunna ladda in er logga som ikon
 import streamlit.components.v1 as components
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -12,10 +13,21 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 
 # --- 1. SIDKONFIGURATION OCH BRANDING ---
-st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="centered")
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(current_dir, "saknade_fragor.txt")
+logo_path = os.path.join(current_dir, "bilder", "logo.png")
+
+# Försök ladda Isolerab-loggan för att trycka in i fliken och mobiltelefonen
+try:
+    app_icon = Image.open(logo_path)
+except:
+    app_icon = "⚡"  # Reserv-ikon om loggan inte skulle hittas
+
+# Här döper vi fliken, föreslår "El-Assistenten" vid nedladdning, och sätter ikonen
+st.set_page_config(
+    page_title="El-Assistenten", 
+    page_icon=app_icon, 
+    layout="centered"
 
 # --- 2. DESIGN OCH FÄRGSCHEMA ---
 st.markdown("""
