@@ -56,7 +56,6 @@ st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", uns
 # --- 5. UPPGRADERAD RIT- OCH BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
-    # Mönster för att hitta [BILD: filnamn.jpg] eller [SCHEMA: mermaid_kod]
     pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
     parts = re.split(pattern, text)
     
@@ -67,14 +66,12 @@ def render_content(text):
                 st.markdown(h_text, unsafe_allow_html=True)
         else:
             content = part.strip()
-            # Om det är en bildfil
             if any(content.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
                 img_path = os.path.join(image_dir, content)
                 if os.path.exists(img_path):
                     st.image(img_path, use_container_width=True)
                 else:
                     st.warning(f"⚠️ Hittar inte: {content}. Kontrollera mappen /bilder.")
-            # Om det är Mermaid-kod (Schema)
             else:
                 html_code = f"""
                 <pre class="mermaid" style="background: transparent;">
@@ -98,30 +95,40 @@ except Exception as e:
 
 chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
 
+# RÄTTNING 1: La tillbaka {context} i instruktionerna!
 system_prompt = (
     "Du är Isolerabs el-mentor. Din uppgift är att svara med fakta.\n"
     "REGLER:\n"
     "1. Om användaren vill se en bild, använd formatet: [BILD: filnamn.jpg]\n"
     "2. Om användaren vill se ett schema eller rita, använd Mermaid-syntax inuti: [SCHEMA: graph TD...]\n"
     "3. Om du inte hittar svar i dokumenten, inled med: 'Jag hittar inte detta i Isolerabs manualer, men min generella kunskap säger följande:'\n"
-    "4. Svara alltid strukturerat och pedagogiskt på svenska."
+    "4. Svara alltid strukturerat och pedagogiskt på svenska.\n\n"
+    "Expertkunskap:\n{context}"
 )
 
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
+
+# RÄTTNING 2: La tillbaka koden som hanterar dina avatarer!
+avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
+avatar_bot_path = os.path.join(current_dir, "ikoner", "bot.png")
+avatar_user = avatar_user_path if os.path.exists(avatar_user_path) else "👤"
+avatar_bot = avatar_bot_path if os.path.exists(avatar_bot_path) else "🤖"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
+    # Ser till att rätt ikon visas bredvid rätt meddelande
+    avatar = avatar_user if msg["role"] == "user" else avatar_bot
+    with st.chat_message(msg["role"], avatar=avatar):
         render_content(msg["content"])
 
 if query := st.chat_input("Ställ din fråga..."):
     st.session_state.messages.append({"role": "user", "content": query})
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar=avatar_user):
         st.write(query)
     
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=avatar_bot):
         with st.spinner("Tänker..."):
             try:
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
@@ -129,7 +136,7 @@ if query := st.chat_input("Ställ din fråga..."):
                 response = chain.invoke({"input": query})
                 res_text = response["answer"]
                 
-                safety = "**Använd mina svar med försiktighet...**\n\n"
+                safety = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
                 full_res = safety + res_text
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
