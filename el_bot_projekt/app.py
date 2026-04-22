@@ -117,7 +117,6 @@ system_prompt = (
     "Expertkunskap:\n{context}"
 )
 
-)
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
 avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
