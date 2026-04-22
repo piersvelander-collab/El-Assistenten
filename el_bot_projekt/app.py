@@ -228,4 +228,5 @@ if query := st.chat_input("Ställ din fråga..."):
                         st.error(f"Systemfel: {error_msg}")
                         break
                     else: 
-                        st.warning("⚠️ Ett oväntat fel uppstod. Vän
+                        st.warning("⚠️ Ett oväntat fel uppstod. Vänligen vänta några sekunder och ställ frågan igen!")
+                        break
