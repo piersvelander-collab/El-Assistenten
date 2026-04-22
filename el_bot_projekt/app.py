@@ -12,9 +12,27 @@ from langchain_core.prompts import ChatPromptTemplate
 st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="centered")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(current_dir, "saknade_fragor.txt")
 
-# --- NYHET: FELSÖKNINGS-MENY I SIDOMENYN ---
+# --- NYHET: SIDOMENY MED BÅDE LOGG OCH FELSÖKNING ---
 with st.sidebar:
+    # 1. Kunskaps-loggen
+    st.header("📝 Kunskaps-logg")
+    st.write("Här hamnar frågor som saknar egna Isolerab-dokument.")
+    
+    if os.path.exists(log_path):
+        with open(log_path, "r", encoding="utf-8") as f:
+            log_content = f.read()
+        st.text_area("Behöver skrivas manualer för:", log_content, height=200)
+        if st.button("Rensa logg"):
+            os.remove(log_path)
+            st.rerun()
+    else:
+        st.info("Inga frågor loggade ännu. Allt flyter på!")
+        
+    st.divider()
+    
+    # 2. Felsökning
     st.header("🛠 Felsökning")
     if st.checkbox("Visa hittade filer (Debug)"):
         st.write(f"Appens mapp: `{current_dir}`")
@@ -53,7 +71,7 @@ if os.path.exists(logo_path):
     st.image(logo_path, width=150)
 st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
 
-# --- 5. UPPGRADERAD RIT- OCH BILDFUNKTION ---
+# --- 5. RIT- OCH BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
     pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
@@ -95,7 +113,6 @@ except Exception as e:
 
 chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
 
-# RÄTTNING 1: La tillbaka {context} i instruktionerna!
 system_prompt = (
     "Du är Isolerabs el-mentor. Din uppgift är att svara med fakta.\n"
     "REGLER:\n"
@@ -108,7 +125,6 @@ system_prompt = (
 
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
-# RÄTTNING 2: La tillbaka koden som hanterar dina avatarer!
 avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
 avatar_bot_path = os.path.join(current_dir, "ikoner", "bot.png")
 avatar_user = avatar_user_path if os.path.exists(avatar_user_path) else "👤"
@@ -118,7 +134,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for msg in st.session_state.messages:
-    # Ser till att rätt ikon visas bredvid rätt meddelande
     avatar = avatar_user if msg["role"] == "user" else avatar_bot
     with st.chat_message(msg["role"], avatar=avatar):
         render_content(msg["content"])
@@ -135,6 +150,12 @@ if query := st.chat_input("Ställ din fråga..."):
                 chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                 response = chain.invoke({"input": query})
                 res_text = response["answer"]
+                
+                # --- LOGGNINGS-Mekanismen är tillbaka! ---
+                if "Jag hittar inte detta i Isolerabs manualer" in res_text:
+                    with open(log_path, "a", encoding="utf-8") as f:
+                        f.write(f"- {query}\n")
+                    st.toast("📌 Frågan har sparats i loggen för framtida manualer!")
                 
                 safety = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
                 full_res = safety + res_text
