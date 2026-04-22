@@ -25,7 +25,6 @@ def render_content(text):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
     
-    # Delar upp texten där bild-taggar finns, t.ex. [VISA_BILD: skiss.jpg]
     pattern = r'\[(?:VISA_BILD|BILD):\s*([^\]]+)\]'
     parts = re.split(pattern, text)
     
@@ -48,7 +47,6 @@ if google_api_key:
     
     # --- LADDA EXPERTKUNSKAP (Blixtsnabbt) ---
     try:
-        # VIKTIGT: Måste vara samma modellnamn som i bygg_index.py
         embeddings = GoogleGenerativeAIEmbeddings(
             model="models/gemini-embedding-001", 
             google_api_key=google_api_key
@@ -58,8 +56,9 @@ if google_api_key:
             embeddings, 
             allow_dangerous_deserialization=True
         )
-except Exception as e:
+    except Exception as e:
         st.error("⚠️ **Kunde inte ladda expertkunskapen!**")
+        st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
         st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
         st.stop()
 
@@ -105,14 +104,12 @@ except Exception as e:
         
         with st.chat_message("assistant", avatar=avatarer["assistant"]):
             with st.spinner("Letar i handböckerna..."):
-                # Skapar sök-kedjan
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
                 rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                 
                 response = rag_chain.invoke({"input": query})
                 res_text = response["answer"]
                 
-                # Säkerhetsvarning (Obligatorisk)
                 safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
                 full_res = safety_warning + res_text
                 
