@@ -115,8 +115,9 @@ except Exception as e:
     st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
     st.stop()
 
+# --- UPPRGRADERAD AI-HJÄRNA TILL 2.5 ---
 chat_model = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash", 
+    model="gemini-2.5-flash", 
     google_api_key=google_api_key,
     temperature=0.0
 )
@@ -170,6 +171,5 @@ if query := st.chat_input("Ställ din fråga om el till Isolerab..."):
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
             except Exception as e:
-                # Här fångar vi Googles sanna felmeddelande!
                 st.error("⚠️ **Ett fel uppstod när boten skulle svara!**")
                 st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
