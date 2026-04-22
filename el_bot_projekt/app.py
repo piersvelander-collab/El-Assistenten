@@ -71,7 +71,6 @@ st.markdown("""
 current_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 
-# Använder Streamlits inbyggda funktion för att slippa fula brutna ikoner
 if os.path.exists(logo_path):
     st.image(logo_path, width=150, use_container_width=False)
     st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
@@ -101,7 +100,6 @@ def render_content(text):
 # --- 6. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
 try:
-    # RÄTTNING 1: Ger nyckeln direkt till sökmotorn
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-001",
         google_api_key=google_api_key
@@ -117,7 +115,6 @@ except Exception as e:
     st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
     st.stop()
 
-# RÄTTNING 2: Ger nyckeln direkt till chatthjärnan
 chat_model = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash", 
     google_api_key=google_api_key,
@@ -160,14 +157,19 @@ if query := st.chat_input("Ställ din fråga om el till Isolerab..."):
     
     with st.chat_message("assistant", avatar=avatar_bot):
         with st.spinner("Isolerabs el-mentor tänker..."):
-            retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-            rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-            
-            response = rag_chain.invoke({"input": query})
-            res_text = response["answer"]
-            
-            safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
-            full_res = safety_warning + res_text
-            
-            render_content(full_res)
-            st.session_state.messages.append({"role": "assistant", "content": full_res})
+            try:
+                retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+                rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
+                
+                response = rag_chain.invoke({"input": query})
+                res_text = response["answer"]
+                
+                safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
+                full_res = safety_warning + res_text
+                
+                render_content(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res})
+            except Exception as e:
+                # Här fångar vi Googles sanna felmeddelande!
+                st.error("⚠️ **Ett fel uppstod när boten skulle svara!**")
+                st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
