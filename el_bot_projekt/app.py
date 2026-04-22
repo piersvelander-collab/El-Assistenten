@@ -23,8 +23,7 @@ try:
 except:
     app_icon = "⚡"  # Reserv-ikon om loggan inte skulle hittas
 
-# Här döper vi fliken, föreslår "El-Assistenten" vid nedladdning, och sätter ikonen
-st.set_page_config(
+# Här döper vi fliken, föreslår "El-Assistenten" vid nedladdning, och sätter ikonen st.set_page_config(
     page_title="El-Assistenten", 
     page_icon=app_icon, 
     layout="centered"
