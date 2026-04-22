@@ -211,7 +211,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=(avatar_user if msg["role"]=="user" else avatar_bot)):
         render_content(msg["content"])
 
-if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙️)"):
+if query := st.chat_input("Ställ din spännande el-fråga... (Tips: Använd🎙️)"):
     # PÅSKÄGG: Fira framgång!
     if any(ord in query.lower() for ord in ["pierfekt", "tack", "löst det", "bra jobbat"]):
         st.balloons()
