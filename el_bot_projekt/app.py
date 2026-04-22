@@ -15,6 +15,23 @@ st.set_page_config(
     layout="centered"
 )
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# --- LOGG-FUNKTION I SIDOMENYN ---
+st.sidebar.header("📝 Kunskaps-logg")
+st.sidebar.write("Här hamnar frågor som saknar egna Isolerab-dokument.")
+log_path = os.path.join(current_dir, "saknade_fragor.txt")
+
+if os.path.exists(log_path):
+    with open(log_path, "r", encoding="utf-8") as f:
+        log_content = f.read()
+    st.sidebar.text_area("Behöver skrivas manualer för:", log_content, height=200)
+    if st.sidebar.button("Rensa logg"):
+        os.remove(log_path)
+        st.rerun()
+else:
+    st.sidebar.info("Inga frågor loggade ännu. Allt flyter på!")
+
 # --- 2. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
@@ -25,58 +42,32 @@ if not google_api_key:
     st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn.")
     st.stop()
 
-# Aktivera nyckeln i bakgrunden
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
 # --- 3. ANPASSAD STYLING (CSS) ---
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #0d014d;
-    }
-    
-    /* TVINGAR ALL TEXT ATT BLI VIT */
-    p, li, .stMarkdown, div[data-testid="stChatMessageContent"] {
-        color: #ffffff !important;
-    }
-    
+    .stApp { background-color: #0d014d; }
+    p, li, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
     .brand-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 20px;
-        padding: 10px;
-        background-color: #0d014d;
-        border-bottom: 2px solid #82e300;
+        display: flex; align-items: center; margin-bottom: 20px; padding: 10px;
+        background-color: #0d014d; border-bottom: 2px solid #82e300;
     }
-    .brand-header img {
-        height: 40px;
-        margin-right: 15px;
-    }
-    .brand-header h1 {
-        margin: 0;
-        color: #82e300 !important;
-        font-size: 1.8em;
-    }
+    .brand-header img { height: 40px; margin-right: 15px; }
+    .brand-header h1 { margin: 0; color: #82e300 !important; font-size: 1.8em; }
     .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white !important;
+        background-color: rgba(255, 255, 255, 0.1); color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.2);
     }
     .stTextInput > div > div > input:focus {
-        border-color: #82e300;
-        box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25);
+        border-color: #82e300; box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25);
     }
-    .highlight {
-        color: #82e300 !important;
-        font-weight: bold;
-    }
+    .highlight { color: #82e300 !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 4. RENDERERA HEADER ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
-
 if os.path.exists(logo_path):
     st.image(logo_path, width=150, use_container_width=False)
     st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
@@ -85,12 +76,9 @@ else:
 
 st.write("Välkommen! Jag är din guide i elens värld. Fråga mig om installationer, regler och teori.")
 
-# --- 5. HJÄLPFUNKTIONER ---
+# --- 5. HJÄLPFUNKTIONER (Ritbord och bilder) ---
 def render_content(text):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
     image_dir = os.path.join(current_dir, "bilder")
-    
-    # Letar efter antingen bilder eller SCHEMA-taggar
     pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
     parts = re.split(pattern, text)
     
@@ -101,14 +89,10 @@ def render_content(text):
                 st.markdown(highlighted_text, unsafe_allow_html=True)
         else:
             part = part.strip()
-            # Om det är en bildfil (slutar på .png, .jpg etc)
             if part.endswith(('.png', '.jpg', '.jpeg', '.gif')):
                 img_path = os.path.join(image_dir, part)
-                if os.path.exists(img_path): 
-                    st.image(img_path, use_container_width=True)
-                else:
-                    st.warning(f"⚠️ Bilden '{part}' saknas.")
-            # Om det är ett Mermaid-schema (kod)
+                if os.path.exists(img_path): st.image(img_path, use_container_width=True)
+                else: st.warning(f"⚠️ Bilden '{part}' saknas.")
             else:
                 mermaid_html = f"""
                 <div class="mermaid">
@@ -124,35 +108,29 @@ def render_content(text):
 # --- 6. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
 try:
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
-        google_api_key=google_api_key
-    )
-    vectorstore = FAISS.load_local(
-        index_path, 
-        embeddings, 
-        allow_dangerous_deserialization=True
-    )
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=google_api_key)
+    vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
 except Exception as e:
     st.error("⚠️ **Kunde inte ladda expertkunskapen!**")
     st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
-    st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
     st.stop()
 
 chat_model = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash", 
     google_api_key=google_api_key,
-    temperature=0.0
+    temperature=0.0,
+    max_retries=5
 )
 
+# DEN NYA, INITIATIVTAGANDE HJÄRNAN
 system_prompt = (
-        "Du är en logisk, strikt och professionell svensk el-mentor för företaget Isolerab. Din viktigaste regel är SANNING.\n\n"
+        "Du är en professionell svensk el-mentor för företaget Isolerab. Din viktigaste regel är FAKTA.\n\n"
         "REGLER:\n"
-        "1. ANVÄND ENDAST KONTEXTEN: Svara bara om stödet finns i de bifogade dokumenten.\n"
-        "2. OM SVAR SAKNAS: Svara att du inte kan svara baserat på din nuvarande expertkunskap.\n"
-        "3. SPRÅK: Använd uteslutande korrekt svensk el-terminologi.\n"
-        "4. STRUKTUR: Svara i punktform med säkerhetsföreskrifter allra högst upp.\n"
-        "5. VISUALISERING: Om användaren ber dig 'rita', 'visa ett schema' eller 'förklara visuellt', rita ett diagram med Mermaid.js-syntax. Kapsla in hela din Mermaid-kod EXAKT så här: [SCHEMA: din_mermaid_kod_här]\n\n"
+        "1. PRIORITERA DOKUMENT: Du letar först och främst efter svaret i dina bifogade dokument.\n"
+        "2. TA SÄKERT INITIATIV: Om frågan INTE besvaras i dokumenten, får du använda din generella och djupa expertis som elektriker. MEN, du måste då ALLTID inleda ditt svar med EXAKT denna mening: 'Jag hittar inte detta i Isolerabs manualer, men min generella kunskap säger följande:'\n"
+        "3. INGA GISSNINGAR: Är du det minsta osäker på fakta, svara att du inte vet.\n"
+        "4. SPRÅK: Använd uteslutande korrekt svensk el-terminologi.\n"
+        "5. VISUALISERING: Om användaren ber dig 'rita' eller 'visa ett schema', rita ett diagram med Mermaid.js-syntax. Kapsla in din kod så här: [SCHEMA: din_mermaid_kod]\n\n"
         "Expertkunskap:\n{context}"
 )
 
@@ -160,7 +138,6 @@ prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", 
 
 avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
 avatar_bot_path = os.path.join(current_dir, "ikoner", "bot.png")
-
 avatar_user = avatar_user_path if os.path.exists(avatar_user_path) else "👤"
 avatar_bot = avatar_bot_path if os.path.exists(avatar_bot_path) else "🤖"
 
@@ -168,10 +145,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
     
 for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        avatar = avatar_user
-    else:
-        avatar = avatar_bot
+    avatar = avatar_user if msg["role"] == "user" else avatar_bot
     with st.chat_message(msg["role"], avatar=avatar): 
         render_content(msg["content"])
 
@@ -189,11 +163,23 @@ if query := st.chat_input("Ställ din fråga om el till Isolerab..."):
                 response = rag_chain.invoke({"input": query})
                 res_text = response["answer"]
                 
+                # --- LOGGNINGS-Mekanismen ---
+                # Om boten använder vår exakta varnings-fras, loggar vi frågan!
+                if "Jag hittar inte detta i Isolerabs manualer" in res_text:
+                    with open(log_path, "a", encoding="utf-8") as f:
+                        f.write(f"- {query}\n")
+                    st.toast("📌 Frågan har sparats i loggen för framtida manualer!")
+                
                 safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
                 full_res = safety_warning + res_text
                 
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
+                
             except Exception as e:
-                st.error("⚠️ **Ett fel uppstod när boten skulle svara!**")
-                st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
+                error_msg = str(e)
+                if "503" in error_msg or "UNAVAILABLE" in error_msg:
+                    st.warning("⏳ **Ursäkta dröjsmålet!** Googles servrar har tillfällig rusningstrafik. Vänta några sekunder och ställ frågan igen.")
+                else:
+                    st.error("⚠️ **Ett fel uppstod när boten skulle svara!**")
+                    st.error(f"🔍 Systemets dolda felmeddelande: {error_msg}")
