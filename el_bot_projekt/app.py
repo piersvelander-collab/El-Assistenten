@@ -9,34 +9,26 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langchain_core.prompts import ChatPromptTemplate
 
 # --- 1. SIDKONFIGURATION OCH BRANDING ---
-st.set_page_config(
-    page_title="Isolerab El-Assistent",
-    page_icon="⚡", 
-    layout="centered"
-)
+st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="centered")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- LOGG-FUNKTION I SIDOMENYN ---
-st.sidebar.header("📝 Kunskaps-logg")
-st.sidebar.write("Här hamnar frågor som saknar egna Isolerab-dokument.")
-log_path = os.path.join(current_dir, "saknade_fragor.txt")
-
-if os.path.exists(log_path):
-    with open(log_path, "r", encoding="utf-8") as f:
-        log_content = f.read()
-    st.sidebar.text_area("Behöver skrivas manualer för:", log_content, height=200)
-    if st.sidebar.button("Rensa logg"):
-        os.remove(log_path)
-        st.rerun()
-else:
-    st.sidebar.info("Inga frågor loggade ännu. Allt flyter på!")
+# --- NYHET: FELSÖKNINGS-MENY I SIDOMENYN ---
+with st.sidebar:
+    st.header("🛠 Felsökning")
+    if st.checkbox("Visa hittade filer (Debug)"):
+        st.write(f"Appens mapp: `{current_dir}`")
+        img_dir = os.path.join(current_dir, "bilder")
+        if os.path.exists(img_dir):
+            st.write(f"Filer i /bilder: {os.listdir(img_dir)}")
+        else:
+            st.error("Mappen /bilder hittades inte!")
 
 # --- 2. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
-    google_api_key = st.sidebar.text_input("Klistra in din Google API-nyckel här:", type="password")
+    google_api_key = st.sidebar.text_input("API-nyckel:", type="password")
 
 if not google_api_key:
     st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn.")
@@ -44,24 +36,13 @@ if not google_api_key:
 
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 3. ANPASSAD STYLING (CSS) ---
+# --- 3. ANPASSAD STYLING ---
 st.markdown("""
 <style>
     .stApp { background-color: #0d014d; }
     p, li, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
-    .brand-header {
-        display: flex; align-items: center; margin-bottom: 20px; padding: 10px;
-        background-color: #0d014d; border-bottom: 2px solid #82e300;
-    }
-    .brand-header img { height: 40px; margin-right: 15px; }
-    .brand-header h1 { margin: 0; color: #82e300 !important; font-size: 1.8em; }
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.1); color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #82e300; box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25);
-    }
+    .brand-header { display: flex; align-items: center; border-bottom: 2px solid #82e300; margin-bottom: 20px; }
+    .brand-header h1 { color: #82e300 !important; }
     .highlight { color: #82e300 !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
@@ -69,117 +50,88 @@ st.markdown("""
 # --- 4. RENDERERA HEADER ---
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 if os.path.exists(logo_path):
-    st.image(logo_path, width=150, use_container_width=False)
-    st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
-else:
-    st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
+    st.image(logo_path, width=150)
+st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
 
-st.write("Välkommen! Jag är din guide i elens värld. Fråga mig om installationer, regler och teori.")
-
-# --- 5. HJÄLPFUNKTIONER (Ritbord och bilder) ---
+# --- 5. UPPGRADERAD RIT- OCH BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
+    # Mönster för att hitta [BILD: filnamn.jpg] eller [SCHEMA: mermaid_kod]
     pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
     parts = re.split(pattern, text)
     
     for i, part in enumerate(parts):
         if i % 2 == 0:
-            if part.strip(): 
-                highlighted_text = part.strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>")
-                st.markdown(highlighted_text, unsafe_allow_html=True)
+            if part.strip():
+                h_text = part.strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>")
+                st.markdown(h_text, unsafe_allow_html=True)
         else:
-            part = part.strip()
-            if part.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                img_path = os.path.join(image_dir, part)
-                if os.path.exists(img_path): st.image(img_path, use_container_width=True)
-                else: st.warning(f"⚠️ Bilden '{part}' saknas.")
+            content = part.strip()
+            # Om det är en bildfil
+            if any(content.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
+                img_path = os.path.join(image_dir, content)
+                if os.path.exists(img_path):
+                    st.image(img_path, use_container_width=True)
+                else:
+                    st.warning(f"⚠️ Hittar inte: {content}. Kontrollera mappen /bilder.")
+            # Om det är Mermaid-kod (Schema)
             else:
-                mermaid_html = f"""
-                <div class="mermaid">
-                {part}
-                </div>
+                html_code = f"""
+                <pre class="mermaid" style="background: transparent;">
+                {content}
+                </pre>
                 <script type="module">
-                import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
+                    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                    mermaid.initialize({{ startOnLoad: true, theme: 'dark', securityLevel: 'loose' }});
                 </script>
                 """
-                components.html(mermaid_html, height=400)
+                components.html(html_code, height=500, scrolling=True)
 
 # --- 6. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
 try:
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=google_api_key)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
 except Exception as e:
-    st.error("⚠️ **Kunde inte ladda expertkunskapen!**")
-    st.error(f"🔍 Systemets dolda felmeddelande: {str(e)}")
+    st.error(f"Kunde inte ladda expertkunskap: {e}")
     st.stop()
 
-chat_model = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", 
-    google_api_key=google_api_key,
-    temperature=0.0,
-    max_retries=5
-)
+chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
 
-# DEN NYA, INITIATIVTAGANDE HJÄRNAN
 system_prompt = (
-        "Du är en professionell svensk el-mentor för företaget Isolerab. Din viktigaste regel är FAKTA.\n\n"
-        "REGLER:\n"
-        "1. PRIORITERA DOKUMENT: Du letar först och främst efter svaret i dina bifogade dokument.\n"
-        "2. TA SÄKERT INITIATIV: Om frågan INTE besvaras i dokumenten, får du använda din generella och djupa expertis som elektriker. MEN, du måste då ALLTID inleda ditt svar med EXAKT denna mening: 'Jag hittar inte detta i Isolerabs manualer, men min generella kunskap säger följande:'\n"
-        "3. INGA GISSNINGAR: Är du det minsta osäker på fakta, svara att du inte vet.\n"
-        "4. SPRÅK: Använd uteslutande korrekt svensk el-terminologi.\n"
-        "5. VISUALISERING: Om användaren ber dig 'rita' eller 'visa ett schema', rita ett diagram med Mermaid.js-syntax. Kapsla in din kod så här: [SCHEMA: din_mermaid_kod]\n\n"
-        "Expertkunskap:\n{context}"
+    "Du är Isolerabs el-mentor. Din uppgift är att svara med fakta.\n"
+    "REGLER:\n"
+    "1. Om användaren vill se en bild, använd formatet: [BILD: filnamn.jpg]\n"
+    "2. Om användaren vill se ett schema eller rita, använd Mermaid-syntax inuti: [SCHEMA: graph TD...]\n"
+    "3. Om du inte hittar svar i dokumenten, inled med: 'Jag hittar inte detta i Isolerabs manualer, men min generella kunskap säger följande:'\n"
+    "4. Svara alltid strukturerat och pedagogiskt på svenska."
 )
 
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
-avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
-avatar_bot_path = os.path.join(current_dir, "ikoner", "bot.png")
-avatar_user = avatar_user_path if os.path.exists(avatar_user_path) else "👤"
-avatar_bot = avatar_bot_path if os.path.exists(avatar_bot_path) else "🤖"
-
-if "messages" not in st.session_state: 
+if "messages" not in st.session_state:
     st.session_state.messages = []
-    
+
 for msg in st.session_state.messages:
-    avatar = avatar_user if msg["role"] == "user" else avatar_bot
-    with st.chat_message(msg["role"], avatar=avatar): 
+    with st.chat_message(msg["role"]):
         render_content(msg["content"])
 
-if query := st.chat_input("Ställ din fråga om el till Isolerab..."):
+if query := st.chat_input("Ställ din fråga..."):
     st.session_state.messages.append({"role": "user", "content": query})
-    with st.chat_message("user", avatar=avatar_user): 
+    with st.chat_message("user"):
         st.write(query)
     
-    with st.chat_message("assistant", avatar=avatar_bot):
-        with st.spinner("Isolerabs el-mentor tänker..."):
+    with st.chat_message("assistant"):
+        with st.spinner("Tänker..."):
             try:
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-                rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-                
-                response = rag_chain.invoke({"input": query})
+                chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
+                response = chain.invoke({"input": query})
                 res_text = response["answer"]
                 
-                # --- LOGGNINGS-Mekanismen ---
-                # Om boten använder vår exakta varnings-fras, loggar vi frågan!
-                if "Jag hittar inte detta i Isolerabs manualer" in res_text:
-                    with open(log_path, "a", encoding="utf-8") as f:
-                        f.write(f"- {query}\n")
-                    st.toast("📌 Frågan har sparats i loggen för framtida manualer!")
-                
-                safety_warning = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
-                full_res = safety_warning + res_text
-                
+                safety = "**Använd mina svar med försiktighet...**\n\n"
+                full_res = safety + res_text
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
-                
             except Exception as e:
-                error_msg = str(e)
-                if "503" in error_msg or "UNAVAILABLE" in error_msg:
-                    st.warning("⏳ **Ursäkta dröjsmålet!** Googles servrar har tillfällig rusningstrafik. Vänta några sekunder och ställ frågan igen.")
-                else:
-                    st.error("⚠️ **Ett fel uppstod när boten skulle svara!**")
-                    st.error(f"🔍 Systemets dolda felmeddelande: {error_msg}")
+                st.error(f"Fel vid svar: {e}")
