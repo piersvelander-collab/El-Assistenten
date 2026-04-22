@@ -100,11 +100,13 @@ if not google_api_key:
 
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 5. RENDERERA HEADER ---
+# --- RENDERERA HEADER ---
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 if os.path.exists(logo_path):
     st.image(logo_path, width=150)
-st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
+
+# Här sätter vi det nya namnet och tvingar hela rubriken att bli mintgrön (#82e300)
+st.markdown("<h1 style='color: #82e300 !important;'>ISOLERAB's Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
 
 # --- 6. RIT- OCH BILDFUNKTION ---
 def render_content(text):
