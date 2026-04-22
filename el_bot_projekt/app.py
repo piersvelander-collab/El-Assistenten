@@ -14,7 +14,53 @@ st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(current_dir, "saknade_fragor.txt")
 
-# --- NYHET: SIDOMENY MED BÅDE LOGG OCH FELSÖKNING ---
+# --- 2. NY DESIGN OCH FÄRGSCHEMA (CSS) ---
+st.markdown("""
+<style>
+    /* Bakgrund för hela appen OCH sidomenyn */
+    .stApp, [data-testid="stSidebar"] { 
+        background-color: #0d014d !important; 
+    }
+    
+    /* Vit text överallt (stycken, listor, etiketter) */
+    p, li, label, .stMarkdown, div[data-testid="stChatMessageContent"], h1, h2, h3, h4, h5, h6 { 
+        color: #ffffff !important; 
+    }
+    
+    /* Isolerab-grön för varumärke och markeringar */
+    .brand-header h1 { color: #82e300 !important; }
+    .highlight { color: #82e300 !important; font-weight: bold; }
+    
+    /* Inmatningsfält och textrutor (Mörk bakgrund, vit text) */
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        background-color: rgba(0, 0, 0, 0.4) !important; 
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Grön ram när man klickar i en textruta */
+    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
+        border-color: #82e300 !important; 
+        box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25) !important;
+    }
+    
+    /* Knappar (Grön ram, mörk bakgrund) */
+    .stButton > button {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+        border: 1px solid #82e300 !important;
+    }
+    
+    /* När man hovrar över knappen */
+    .stButton > button:hover {
+        background-color: #82e300 !important;
+        color: #0d014d !important;
+        border-color: #ffffff !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 3. SIDOMENY MED BÅDE LOGG OCH FELSÖKNING ---
 with st.sidebar:
     # 1. Kunskaps-loggen
     st.header("📝 Kunskaps-logg")
@@ -42,7 +88,7 @@ with st.sidebar:
         else:
             st.error("Mappen /bilder hittades inte!")
 
-# --- 2. API-NYCKEL ---
+# --- 4. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
@@ -54,24 +100,13 @@ if not google_api_key:
 
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 3. ANPASSAD STYLING ---
-st.markdown("""
-<style>
-    .stApp { background-color: #0d014d; }
-    p, li, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
-    .brand-header { display: flex; align-items: center; border-bottom: 2px solid #82e300; margin-bottom: 20px; }
-    .brand-header h1 { color: #82e300 !important; }
-    .highlight { color: #82e300 !important; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 4. RENDERERA HEADER ---
+# --- 5. RENDERERA HEADER ---
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 if os.path.exists(logo_path):
     st.image(logo_path, width=150)
 st.markdown("<h1><span class='highlight'>ISOLERAB</span> El-Assistent</h1>", unsafe_allow_html=True)
 
-# --- 5. RIT- OCH BILDFUNKTION ---
+# --- 6. RIT- OCH BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
     pattern = r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]'
@@ -102,7 +137,7 @@ def render_content(text):
                 """
                 components.html(html_code, height=500, scrolling=True)
 
-# --- 6. HUVUDPROGRAM ---
+# --- 7. HUVUDPROGRAM ---
 index_path = os.path.join(current_dir, "faiss_index")
 try:
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
@@ -151,7 +186,7 @@ if query := st.chat_input("Ställ din fråga..."):
                 response = chain.invoke({"input": query})
                 res_text = response["answer"]
                 
-                # --- LOGGNINGS-Mekanismen är tillbaka! ---
+                # --- LOGGNINGS-Mekanismen ---
                 if "Jag hittar inte detta i Isolerabs manualer" in res_text:
                     with open(log_path, "a", encoding="utf-8") as f:
                         f.write(f"- {query}\n")
