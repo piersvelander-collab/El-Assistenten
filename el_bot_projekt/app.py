@@ -1,12 +1,14 @@
 import streamlit as st
 import os
 import re
+import base64
 import streamlit.components.v1 as components
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 
 # --- 1. SIDKONFIGURATION OCH BRANDING ---
 st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="centered")
@@ -34,14 +36,11 @@ with st.sidebar:
     st.markdown("### 🔒 Personal-inloggning")
     admin_password = st.text_input("Lösenord:", type="password")
     
-    # Kolla om lösenordet stämmer med det vi la in i Streamlit Secrets
     is_admin = False
     if "ADMIN_PASSWORD" in st.secrets and admin_password == st.secrets["ADMIN_PASSWORD"]:
         is_admin = True
         st.success("✅ Inloggad som Pierfekt Admin")
         st.divider()
-        
-        # Visa loggboken (Bara för admin)
         st.header("📝 Kunskaps-logg")
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
@@ -52,15 +51,11 @@ with st.sidebar:
                 st.rerun()
         else:
             st.info("Inga frågor loggade ännu.")
-            
         st.divider()
-        
-        # Visa felsökning (Bara för admin)
         st.header("🛠 Felsökning")
         if st.checkbox("Visa hittade filer (Debug)"):
             img_dir = os.path.join(current_dir, "bilder")
-            if os.path.exists(img_dir):
-                st.write(f"Filer i /bilder: {os.listdir(img_dir)}")
+            if os.path.exists(img_dir): st.write(f"Filer i /bilder: {os.listdir(img_dir)}")
     elif admin_password:
         st.error("Fel lösenord")
 
@@ -69,8 +64,7 @@ if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     google_api_key = st.sidebar.text_input("API-nyckel:", type="password")
-    if not google_api_key:
-        st.stop()
+    if not google_api_key: st.stop()
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
 # --- 5. RENDERERA HEADER ---
@@ -95,7 +89,7 @@ def render_content(text):
                 img_path = os.path.join(image_dir, content)
                 if os.path.exists(img_path): st.image(img_path, use_container_width=True)
                 else: 
-                    if is_admin: st.warning(f"⚠️ Hittar inte: {content}") # Endast admin ser varningen om saknad bild
+                    if is_admin: st.warning(f"⚠️ Hittar inte: {content}")
             else:
                 html_code = f"<pre class='mermaid'>{content}</pre><script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';mermaid.initialize({{startOnLoad:true,theme:'dark',securityLevel:'loose'}});</script>"
                 components.html(html_code, height=500, scrolling=True)
@@ -119,7 +113,6 @@ system_prompt = (
     "3. Om du inte hittar svar i dokumenten, inled med: 'Jag hittar inte detta i Isolerabs manualer, men min generella kunskap säger följande:'\n"
     "4. Svara på svenska.\n\nExpertkunskap:\n{context}"
 )
-
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
 avatar_user_path = os.path.join(current_dir, "ikoner", "anvandare.png")
@@ -133,6 +126,33 @@ for msg in st.session_state.messages:
     avatar = avatar_user if msg["role"] == "user" else avatar_bot
     with st.chat_message(msg["role"], avatar=avatar): render_content(msg["content"])
 
+# --- NYHET: KAMERA-FUNKTION (FÄRG-HJÄLPEN) ---
+with st.expander("📸 Färg-Hjälpen (Titta på kablar med kameran)"):
+    st.warning("⚠️ **LIVSVIKTIGT:** Jag är en AI. Kamerablixt, skuggor och smuts kan få mig att se fel färg. Använd ALDRIG mitt svar som bevis på vad en kabel gör. Du MÅSTE alltid kontrollmäta!")
+    cam_photo = st.camera_input("Ta en bild på dosan")
+    
+    if cam_photo:
+        if st.button("Analysera färgerna i bilden"):
+            with st.spinner("Granskar bilden..."):
+                try:
+                    img_b64 = base64.b64encode(cam_photo.getvalue()).decode()
+                    img_data = f"data:image/jpeg;base64,{img_b64}"
+                    
+                    vision_msg = HumanMessage(content=[
+                        {"type": "text", "text": "Du är elektriker-assistent. Titta på denna bild av elkablar. Vilka färger kan du urskilja på kablarnas isolering? Svara mycket kort och tydligt. Avsluta med en stark varning om att smuts/ljus kan lura ögat och att de alltid måste mäta för att veta funktionen."},
+                        {"type": "image_url", "image_url": {"url": img_data}}
+                    ])
+                    
+                    vision_res = chat_model.invoke([vision_msg])
+                    
+                    st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för färganalys*"})
+                    st.session_state.messages.append({"role": "assistant", "content": vision_res.content})
+                    st.rerun()
+                except Exception as e:
+                    if is_admin: st.error(f"Bildfel: {e}")
+                    else: st.error("Kunde inte tyda bilden just nu.")
+
+# --- CHATT-INMATNING ---
 if query := st.chat_input("Ställ din fråga..."):
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=avatar_user): st.write(query)
@@ -144,7 +164,6 @@ if query := st.chat_input("Ställ din fråga..."):
                 response = chain.invoke({"input": query})
                 res_text = response["answer"]
                 
-                # --- LOGGNING (Sker i bakgrunden oavsett vem som frågar!) ---
                 if "Jag hittar inte detta i Isolerabs manualer" in res_text:
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
                     if is_admin: st.toast("📌 Frågan loggad!")
@@ -154,8 +173,5 @@ if query := st.chat_input("Ställ din fråga..."):
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
             except Exception as e: 
-                # --- ANPASSAT FELMEDDELANDE ---
-                if is_admin:
-                    st.error(f"Systemfel: {e}") # Admin får hela tekniska felet
-                else:
-                    st.warning("⏳ Isolerabs Pierfekta El-Assistent har just nu väldigt mycket att tänka på. Vänligen vänta några sekunder och ställ frågan igen!") # Användare får ett lugnt meddelande
+                if is_admin: st.error(f"Systemfel: {e}")
+                else: st.warning("⏳ Isolerabs Pierfekta El-Assistent har just nu väldigt mycket att tänka på. Vänligen vänta några sekunder och ställ frågan igen!")
