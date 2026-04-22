@@ -11,7 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 
 # --- 1. SIDKONFIGURATION OCH BRANDING ---
-st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="Isolerabs El-Assistent", page_icon="⚡", layout="centered")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(current_dir, "saknade_fragor.txt")
@@ -183,7 +183,7 @@ if query := st.chat_input("Ställ din fråga..."):
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
                     if is_admin: st.toast("📌 Frågan loggad!")
                 
-                safety = "**Använd mina svar med försiktighet...**\n\n"
+                safety = "**Använd mina svar med försiktighet, jag är en AI-bot och kan svara fel. Är du osäker så kontakta ALLTID elansvarig innan du utför något arbete!!**\n\n"
                 full_res = safety + res_text
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
