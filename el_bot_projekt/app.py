@@ -14,20 +14,26 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 2. HÄMTA API-NYCKEL ---
-# OBS! Byt ut texten nedan mot din riktiga API-nyckel.
-os.environ["GOOGLE_API_KEY"] = "AIzaSyAZCsnB7g2MKhtQiJkxUhSXXwCQ2sZ4S2g"
+# --- 2. API-NYCKEL (Smarta moln-versionen är tillbaka!) ---
+if "GOOGLE_API_KEY" in st.secrets:
+    google_api_key = st.secrets["GOOGLE_API_KEY"]
+else:
+    google_api_key = st.sidebar.text_input("Klistra in din Google API-nyckel här:", type="password")
+
+if not google_api_key:
+    st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn.")
+    st.stop()
+
+# Aktivera nyckeln för hela programmet
+os.environ["GOOGLE_API_KEY"] = google_api_key
 
 # --- 3. ANPASSAD STYLING (CSS) ---
 st.markdown("""
 <style>
-    /* Bakgrundsfärgen för hela sidan */
     .stApp {
         background-color: #0d014d;
         color: white;
     }
-
-    /* Styling för headern */
     .brand-header {
         display: flex;
         align-items: center;
@@ -45,8 +51,6 @@ st.markdown("""
         color: #82e300;
         font-size: 1.8em;
     }
-
-    /* Styling för inmatningsfältet */
     .stTextInput > div > div > input {
         background-color: rgba(255, 255, 255, 0.1);
         color: white;
@@ -56,8 +60,6 @@ st.markdown("""
         border-color: #82e300;
         box-shadow: 0 0 0 0.2rem rgba(130, 227, 0, 0.25);
     }
-
-    /* Styling för den limegröna accentfärgen */
     .highlight {
         color: #82e300;
         font-weight: bold;
