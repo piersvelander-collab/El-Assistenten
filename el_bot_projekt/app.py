@@ -58,7 +58,7 @@ if google_api_key:
             embeddings, 
             allow_dangerous_deserialization=True
         )
-    except Exception as e:
+except Exception as e:
         st.error("⚠️ **Kunde inte ladda expertkunskapen!**")
         st.info("Kontrollera att mappen 'faiss_index' är uppladdad till GitHub och innehåller rätt filer.")
         st.stop()
