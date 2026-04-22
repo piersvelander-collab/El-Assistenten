@@ -14,82 +14,69 @@ st.set_page_config(page_title="Isolerab El-Assistent", page_icon="⚡", layout="
 current_dir = os.path.dirname(os.path.abspath(__file__))
 log_path = os.path.join(current_dir, "saknade_fragor.txt")
 
-# --- 2. DESIGN OCH FÄRGSCHEMA (Korrigerad för Isolerab-grön rubrik) ---
+# --- 2. DESIGN OCH FÄRGSCHEMA ---
 st.markdown("""
 <style>
-    .stApp, [data-testid="stSidebar"] { 
-        background-color: #0d014d !important; 
-    }
-    
-    /* Vit text för chatt och listor, men vi exkluderar h1 härifrån */
-    p, li, label, .stMarkdown, div[data-testid="stChatMessageContent"] { 
-        color: #ffffff !important; 
-    }
-    
-    /* Specifik färg för rubriken: Isolerab-grön (#82e300) */
-    .pierfekta-header {
-        color: #82e300 !important;
-        font-weight: bold;
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-    }
-    
+    .stApp, [data-testid="stSidebar"] { background-color: #0d014d !important; }
+    p, li, label, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
+    .pierfekta-header { color: #82e300 !important; font-weight: bold; font-size: 2.5rem; margin-bottom: 1rem; }
     .highlight { color: #82e300 !important; font-weight: bold; }
-    
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: rgba(0, 0, 0, 0.4) !important; 
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background-color: rgba(0, 0, 0, 0.4) !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    
-    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
-        border-color: #82e300 !important; 
-    }
-    
-    .stButton > button {
-        background-color: rgba(0, 0, 0, 0.4) !important;
-        color: #ffffff !important;
-        border: 1px solid #82e300 !important;
-    }
+    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #82e300 !important; }
+    .stButton > button { background-color: rgba(0, 0, 0, 0.4) !important; color: #ffffff !important; border: 1px solid #82e300 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SIDOMENY ---
+# --- 3. DÖRRVAKTEN & SIDOMENYN (ADMIN) ---
 with st.sidebar:
-    st.header("📝 Kunskaps-logg")
-    if os.path.exists(log_path):
-        with open(log_path, "r", encoding="utf-8") as f:
-            log_content = f.read()
-        st.text_area("Behöver skrivas manualer för:", log_content, height=200)
-        if st.button("Rensa logg"):
-            os.remove(log_path)
-            st.rerun()
-    else:
-        st.info("Inga frågor loggade ännu.")
-    st.divider()
-    st.header("🛠 Felsökning")
-    if st.checkbox("Visa hittade filer (Debug)"):
-        img_dir = os.path.join(current_dir, "bilder")
-        if os.path.exists(img_dir):
-            st.write(f"Filer i /bilder: {os.listdir(img_dir)}")
+    st.markdown("### 🔒 Personal-inloggning")
+    admin_password = st.text_input("Lösenord:", type="password")
+    
+    # Kolla om lösenordet stämmer med det vi la in i Streamlit Secrets
+    is_admin = False
+    if "ADMIN_PASSWORD" in st.secrets and admin_password == st.secrets["ADMIN_PASSWORD"]:
+        is_admin = True
+        st.success("✅ Inloggad som Pierfekt Admin")
+        st.divider()
+        
+        # Visa loggboken (Bara för admin)
+        st.header("📝 Kunskaps-logg")
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                log_content = f.read()
+            st.text_area("Behöver skrivas manualer för:", log_content, height=200)
+            if st.button("Rensa logg"):
+                os.remove(log_path)
+                st.rerun()
+        else:
+            st.info("Inga frågor loggade ännu.")
+            
+        st.divider()
+        
+        # Visa felsökning (Bara för admin)
+        st.header("🛠 Felsökning")
+        if st.checkbox("Visa hittade filer (Debug)"):
+            img_dir = os.path.join(current_dir, "bilder")
+            if os.path.exists(img_dir):
+                st.write(f"Filer i /bilder: {os.listdir(img_dir)}")
+    elif admin_password:
+        st.error("Fel lösenord")
 
 # --- 4. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
     google_api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     google_api_key = st.sidebar.text_input("API-nyckel:", type="password")
-
-if not google_api_key:
-    st.info("👈 Vänligen klistra in din Google API-nyckel i sidomenyn.")
-    st.stop()
+    if not google_api_key:
+        st.stop()
 os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 5. RENDERERA HEADER (Logga + Den nya gröna titeln) ---
+# --- 5. RENDERERA HEADER ---
 logo_path = os.path.join(current_dir, "bilder", "logo.png")
 if os.path.exists(logo_path):
     st.image(logo_path, width=150)
-
-# Här är din nya Isolerab-gröna och personliga rubrik
 st.markdown("<h1 class='pierfekta-header'>ISOLERABs Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
 
 # --- 6. RIT- OCH BILDFUNKTION ---
@@ -107,7 +94,8 @@ def render_content(text):
             if any(content.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
                 img_path = os.path.join(image_dir, content)
                 if os.path.exists(img_path): st.image(img_path, use_container_width=True)
-                else: st.warning(f"⚠️ Hittar inte: {content}")
+                else: 
+                    if is_admin: st.warning(f"⚠️ Hittar inte: {content}") # Endast admin ser varningen om saknad bild
             else:
                 html_code = f"<pre class='mermaid'>{content}</pre><script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';mermaid.initialize({{startOnLoad:true,theme:'dark',securityLevel:'loose'}});</script>"
                 components.html(html_code, height=500, scrolling=True)
@@ -118,7 +106,8 @@ try:
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
 except Exception as e:
-    st.error(f"Kunde inte ladda expertkunskap: {e}")
+    if is_admin: st.error(f"Kunde inte ladda expertkunskap: {e}")
+    else: st.error("⚠️ Systemet uppdateras, vänligen försök igen om en stund.")
     st.stop()
 
 chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
@@ -154,11 +143,19 @@ if query := st.chat_input("Ställ din fråga..."):
                 chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                 response = chain.invoke({"input": query})
                 res_text = response["answer"]
+                
+                # --- LOGGNING (Sker i bakgrunden oavsett vem som frågar!) ---
                 if "Jag hittar inte detta i Isolerabs manualer" in res_text:
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
-                    st.toast("📌 Frågan loggad!")
+                    if is_admin: st.toast("📌 Frågan loggad!")
+                
                 safety = "**Använd mina svar med försiktighet...**\n\n"
                 full_res = safety + res_text
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
-            except Exception as e: st.error(f"Fel: {e}")
+            except Exception as e: 
+                # --- ANPASSAT FELMEDDELANDE ---
+                if is_admin:
+                    st.error(f"Systemfel: {e}") # Admin får hela tekniska felet
+                else:
+                    st.warning("⏳ Isolerabs Pierfekta El-Assistent har just nu väldigt mycket att tänka på. Vänligen vänta några sekunder och ställ frågan igen!") # Användare får ett lugnt meddelande
