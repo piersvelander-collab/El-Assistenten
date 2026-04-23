@@ -153,24 +153,54 @@ with st.expander("📸 Färg-Hjälpen (Kamera)"):
             except Exception as e:
                 st.error("Fel vid bildanalys. Kan bero på överbelastning, försök igen.")
 
-# VERKTYG 2: Kalkylatorn
-with st.expander("🧮 Snabba Kalkylatorn"):
-    st.markdown("Räkna snabbt ut om säkringen håller för utrustningen!")
+# VERKTYG 2: Ohms Lag & Effekt-Kalkylator
+with st.expander("🧮 Kalkylator: Ohms lag & Effekt"):
+    st.markdown("Välj vad du vill räkna ut, och fyll i de kända värdena.")
+    
+    # Användaren väljer vad som ska beräknas
+    calc_choice = st.selectbox("Vad vill du räkna ut?", ["Ström (I)", "Spänning (U)", "Resistans (R)", "Effekt (P)"])
+    
     col1, col2 = st.columns(2)
-    with col1:
-        volt = st.number_input("Spänning (V)", value=230, step=10)
-    with col2:
-        amp = st.number_input("Ström / Belastning (A)", value=10.0, step=0.5)
     
-    watt = volt * amp
-    st.info(f"**Total effekt:** {watt:.0f} W ({watt/1000:.2f} kW)")
-    
-    säkring = st.selectbox("Säkringsstorlek (A)", [6, 10, 13, 16, 20, 25])
-    if amp > säkring:
-        st.error(f"⚠️ Varning: Belastningen ({amp}A) är för hög för en {säkring}A säkring!")
-    else:
-        st.success(f"✅ Säkringen håller. Du har {säkring - amp:.1f}A till godo på denna grupp.")
-
+    if calc_choice == "Ström (I)":
+        with col1: u_val = st.number_input("Spänning (V)", value=230.0, step=10.0)
+        with col2: r_val = st.number_input("Resistans (Ω)", value=23.0, step=1.0)
+        if r_val != 0:
+            i_val = u_val / r_val
+            p_val = u_val * i_val
+            st.success(f"**Resultat:** Ström = {i_val:.2f} A")
+            st.info(f"*(Total effekt: {p_val:.0f} W)*")
+        else:
+            st.error("Resistansen kan inte vara 0.")
+            
+    elif calc_choice == "Spänning (U)":
+        with col1: i_val = st.number_input("Ström (A)", value=10.0, step=0.5)
+        with col2: r_val = st.number_input("Resistans (Ω)", value=23.0, step=1.0)
+        u_val = i_val * r_val
+        p_val = u_val * i_val
+        st.success(f"**Resultat:** Spänning = {u_val:.2f} V")
+        st.info(f"*(Total effekt: {p_val:.0f} W)*")
+        
+    elif calc_choice == "Resistans (R)":
+        with col1: u_val = st.number_input("Spänning (V)", value=230.0, step=10.0)
+        with col2: i_val = st.number_input("Ström (A)", value=10.0, step=0.5)
+        if i_val != 0:
+            r_val = u_val / i_val
+            p_val = u_val * i_val
+            st.success(f"**Resultat:** Resistans = {r_val:.2f} Ω")
+            st.info(f"*(Total effekt: {p_val:.0f} W)*")
+        else:
+            st.error("Strömmen kan inte vara 0.")
+            
+    elif calc_choice == "Effekt (P)":
+        with col1: u_val = st.number_input("Spänning (V)", value=230.0, step=10.0)
+        with col2: i_val = st.number_input("Ström (A)", value=10.0, step=0.5)
+        p_val = u_val * i_val
+        if i_val != 0:
+            r_val = u_val / i_val
+            st.success(f"**Resultat:** Effekt = {p_val:.0f} W")
+            st.info(f"*(Resistans i kretsen: {r_val:.2f} Ω)*")
+            
 # --- NYTT: VERKTYG 3: LÄRLINGS-QUIZ ---
 # Minnet för quizet
 if 'quiz_q_num' not in st.session_state: st.session_state.quiz_q_num = 0
