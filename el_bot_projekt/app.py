@@ -377,35 +377,32 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
         lyckades = False
         while försök < max_försök and not lyckades:
             try:
-                # --- LISTA MED SLUMPMÄSSIGA STATUS-TEXTER ---
+                # --- LISTA MED SLUMPMÄSSIGA STATUS-TEXTER (UTAN IKONER) ---
                 status_texts = [
-                    "🔍 *Gräver djupt i Isolerabs manualer...*",
-                    "🧠 *Kopplar rätt trådar för att ge dig ett bra svar...*",
-                    "⚡ *Laddar upp lite extra spänning inför svaret...*",
-                    "📖 *Bläddrar frenetiskt i Ahlsell-katalogen...*",
-                    "💡 *Tänker så det knakar (men oroa dig inte, säkringen håller)...*",
-                    "🛠️ *Hämtar verktygen från den digitala servicebilen...*",
-                    "⏱️ *Beräknar det mest pierfekta svaret...*"
+                    "*Gräver djupt i Isolerabs manualer...*",
+                    "*Kopplar rätt trådar för att ge dig ett bra svar...*",
+                    "*Laddar upp lite extra spänning inför svaret...*",
+                    "*Bläddrar frenetiskt i Ahlsell-katalogen...*",
+                    "*Tänker så det knakar (men oroa dig inte, säkringen håller)...*",
+                    "*Hämtar verktygen från den digitala servicebilen...*",
+                    "*Beräknar det mest pierfekta svaret...*"
                 ]
                 
-                # Visa en slumpmässig text från listan ovan
                 status_box = st.empty()
                 status_box.markdown(random.choice(status_texts))
                 
-                retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
-                docs = retriever.invoke(query)
-                
-                document_chain = create_stuff_documents_chain(chat_model, prompt)
+                # SÄNKT K-VÄRDE TILL 5 FÖR FELSÖKNING
+                retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+                chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                 
                 safety_warning = "⚠️ **VIKTIGT:** *Jag är en AI-assistent och finns här för att guida dig så gott jag kan, men mina svar är inte till 100 % garanterade. Är du det minsta osäker MÅSTE du alltid kontakta din elansvarige innan du påbörjar något arbete på anläggningen!*\n\n"
                 full_res = safety_warning
                 
                 message_placeholder = st.empty()
                 
-                # Strömmar ut texten och städar bort status-texten
-                for chunk in document_chain.stream({"context": docs, "input": query}):
+                for chunk in chain.stream({"input": query}):
                     if "answer" in chunk:
-                        status_box.empty() # Gömmer den slumpmässiga texten när svaret börjar
+                        status_box.empty()
                         full_res += chunk["answer"]
                         message_placeholder.markdown(full_res, unsafe_allow_html=True)
                 
@@ -419,13 +416,11 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
                 lyckades = True
             
-                        except Exception as e:
-                # Städa upp rutorna om något kraschar
+            except Exception as e:
+                # --- DIAGNOSTIK-LÄGE ---
                 if 'status_box' in locals(): status_box.empty()
                 if 'message_placeholder' in locals(): message_placeholder.empty()
                 
-                # --- DIAGNOSTIK-LÄGE ---
-                # Istället för att dölja felet, skriver vi ut EXAKT vad Google klagar på
                 st.error("❌ Ett fel uppstod i kommunikationen med Google:")
-                st.code(str(e)) # Skriver ut den råa felkoden
+                st.code(str(e))
                 break
