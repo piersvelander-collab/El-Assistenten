@@ -29,7 +29,7 @@ st.set_page_config(
     page_title="El-Assistenten", 
     page_icon=app_icon, 
     layout="centered",
-    initial_sidebar_state="collapsed" # Sparar plats på mobilen vid start
+    initial_sidebar_state="collapsed"
 )
 
 # --- OPTIMERING: CACHING AV TUNGA FUNKTIONER ---
@@ -43,7 +43,7 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    # Använder PRO-modellen för maximal stabilitet och logik
+    # VIKTIGT: Vi använder nu Gemini 2.5 Pro som huvudmotor
     return ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.0, max_retries=5, streaming=True)
 
 vectorstore = load_knowledge_base()
@@ -52,23 +52,24 @@ chat_model = get_chat_model()
 # --- 2. MOBILANPASSAD DESIGN OCH CSS ---
 st.markdown("""
 <style>
-    /* Grundfärger */
+    /* Grundfärger Isolerab Blå */
     .stApp, [data-testid="stSidebar"] { background-color: #0d014d !important; }
     p, li, label, h1, h2, h3, h4, h5, h6, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
     
-    /* Header-stil */
+    /* Header-stil Pierfekt Grön */
     .pierfekta-header { 
         color: #82e300 !important; 
         font-weight: bold; 
-        font-size: 1.8rem; /* Något mindre för mobilen */
+        font-size: 1.8rem; 
         margin-bottom: 1rem; 
     }
     
-    /* Mobilanpassning */
+    /* Mobilanpassning - Större knappar och bättre text */
     @media (max-width: 640px) {
         .pierfekta-header { font-size: 1.4rem; }
-        .stButton > button { width: 100%; height: 3rem; font-size: 1.1rem !important; }
+        .stButton > button { width: 100%; height: 3.5rem; font-size: 1.1rem !important; margin-bottom: 10px; }
         div[data-testid="stChatMessage"] { padding: 0.5rem !important; }
+        .stMarkdown p { font-size: 1.05rem; }
     }
 
     .highlight { color: #82e300 !important; font-weight: bold; }
@@ -86,8 +87,7 @@ st.markdown("""
         border-radius: 8px;
     }
     
-    /* Bilder */
-    img { max-width: 100%; height: auto; border-radius: 10px; }
+    img { max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,7 +95,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown("### 🛠️ Verktyg")
     
-    # --- NY FUNKTION: RENSA CHATT ---
+    # Knapp för att rensa chatten
     if st.button("🧹 Rensa konversation", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
@@ -107,10 +107,10 @@ with st.sidebar:
     
     if "ADMIN_PASSWORD" in st.secrets and admin_password == st.secrets["ADMIN_PASSWORD"]:
         is_admin = True
-        st.success("✅ Admin-läge")
+        st.success("✅ Inloggad som Admin")
         st.divider()
         
-        # Logg för saknade frågor
+        # Sektion för saknade frågor
         log_lines = []
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
@@ -119,9 +119,9 @@ with st.sidebar:
         
         if unanswered_qs:
             st.header("📝 Kunskaps-logg")
-            selected_q = st.selectbox("Välj fråga:", unanswered_qs)
-            new_answer = st.text_area("Skriv svar:", height=100)
-            if st.button("Lär in fakta"):
+            selected_q = st.selectbox("Välj fråga att besvara:", unanswered_qs)
+            new_answer = st.text_area("Skriv Isolerabs officiella svar:", height=150)
+            if st.button("Lär in fakta", use_container_width=True):
                 if new_answer.strip():
                     try:
                         md_content = f"# Svar gällande: {selected_q}\n\n{new_answer}"
@@ -135,20 +135,24 @@ with st.sidebar:
                         unanswered_qs.remove(selected_q)
                         with open(log_path, "w", encoding="utf-8") as f:
                             for q in unanswered_qs: f.write(f"- {q}\n")
-                        st.success("Inlärt!")
+                        st.success("✅ Fakta inlärd!")
                         st.rerun()
-                    except: st.error("Fel vid sparande.")
+                    except: st.error("Kunde inte spara.")
         
         st.divider()
-        # Logg för bilder
+        # Sektion för bild-logg
         if os.path.exists(img_log_path):
             st.header("📸 Önskade Bilder")
             with open(img_log_path, "r", encoding="utf-8") as f:
                 imgs = list(set(f.readlines()))
-            for img in imgs: st.code(img.strip())
-            if st.button("Rensa bild-logg"):
-                os.remove(img_log_path)
-                st.rerun()
+            if imgs:
+                st.info("AI:n efterfrågade dessa bilder:")
+                for img in imgs: st.code(img.strip())
+                if st.button("Rensa bild-logg", use_container_width=True):
+                    os.remove(img_log_path)
+                    st.rerun()
+            else:
+                st.write("Inga saknade bilder loggade.")
 
 # --- 4. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
@@ -163,15 +167,14 @@ if os.path.exists(logo_path): st.image(logo_path, width=120)
 st.markdown("<h1 class='pierfekta-header'>ISOLERABs Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
 
 if not vectorstore:
-    st.error("⚠️ Systemet laddas... vänta några sekunder.")
+    st.error("⚠️ Databasen laddas... vänligen vänta.")
     st.stop()
 
-# (Här lämnas Quizzet och Färg-hjälpen oförändrade från tidigare stabil version...)
-
-# --- 6. RIT- OCH BILDFUNKTION ---
+# --- 6. BILDFUNKTION (ENBART RIKTIGA BILDER) ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
-    parts = re.split(r'\[(?:VISA_BILD|BILD|SCHEMA):\s*([\s\S]+?)\]', text)
+    # Vi har tagit bort Mermaid helt. Letar bara efter [BILD: ...]
+    parts = re.split(r'\[(?:BILD):\s*([\s\S]+?)\]', text)
     for i, part in enumerate(parts):
         if i % 2 == 0:
             if part.strip():
@@ -179,7 +182,6 @@ def render_content(text):
         else:
             content = part.strip()
             if any(content.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
-                # Smart sökning (ignorerar stora/små bokstäver)
                 actual_file = None
                 if os.path.exists(image_dir):
                     try:
@@ -192,37 +194,36 @@ def render_content(text):
                 if actual_file:
                     st.image(actual_file, use_container_width=True)
                 else:
-                    with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
-                    if is_admin: st.sidebar.warning(f"Saknas: {content}")
-            else:
-                # Mermaid Diagram med extra stabilitet
-                clean_mermaid = content.replace('"', "'") # Mermaid gillar inte dubbla citationstecken
-                components.html(f"<pre class='mermaid'>{clean_mermaid}</pre><script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';mermaid.initialize({{startOnLoad:true,theme:'dark',securityLevel:'loose'}});</script>", height=400, scrolling=True)
+                    # Logga tyst om bilden saknas
+                    try:
+                        with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
+                    except: pass
+                    if is_admin: st.sidebar.warning(f"⚠️ Bild saknas i mappen: {content}")
 
 # --- 7. AI-MOTOR OCH CHATT ---
-import random
-
 system_prompt = (
-    "Du är Isolerabs el-mentor och materialexpert. Svara med auktoritet och fakta.\n\n"
-    "REGLER BILDER & SCHEMAN:\n"
-    "1. Använd ENDAST [BILD: filnamn.jpg] om det står i manualen. Skriv aldrig 'filnamn.jpg' som placeholder.\n"
-    "2. Om illustration behövs men bild saknas: Använd [SCHEMA: graph TD...]. Inled alltid koden med 'graph TD' eller 'graph LR'. Använd radbrytningar.\n\n"
-    "REGLER MATERIAL:\n"
-    "1. Vid frågor om uttag, utgå från Aqua Stark IP44 (Standard). Förklara inkopplingen noggrant.\n"
-    "2. Hämta ALLT material från katalogen vid förfrågan. Förklara fördelar och tips.\n\n"
-    "Manualer:\n{context}"
+    "Du är Isolerabs el-mentor och materialexpert. Svara med auktoritet, precision och erfarenhet.\n\n"
+    "REGLER FÖR BILDER:\n"
+    "1. Du får ABSOLUT INTE hitta på egna filnamn för bilder. Använd ENDAST [BILD: filnamn.jpg] om det exakta filnamnet står angivet i manualen du läser.\n"
+    "2. Du får ALDRIG rita egna scheman eller använda Mermaid. Om en bild saknas, förklara med tydlig text istället.\n\n"
+    "REGLER FÖR MATERIAL:\n"
+    "1. Vid frågor om vägguttag, utgå ALLTID från Aqua Stark IP44 (Isolerabs standard). Förklara inkopplingen noggrant steg-för-steg.\n"
+    "2. Hämta materialfakta från katalogen. Förklara fördelar som tidsvinst och säkerhet.\n\n"
+    "ALLMÄNT:\n"
+    "1. Om du inte hittar svaret i Isolerabs manualer, inled med: 'Jag hittar inte detta i manualerna, men som din el-mentor rekommenderar jag följande:'.\n"
+    "2. Svara alltid på svenska och var peppande.\n\n"
+    "Expertkunskap (Manualer & Materialkatalog):\n{context}"
 )
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
-avatar_user = os.path.join(current_dir, "ikoner", "anvandare.png") if os.path.exists(os.path.join(current_dir, "ikoner", "anvandare.png")) else "👤"
-avatar_bot = os.path.join(current_dir, "ikoner", "bot.png") if os.path.exists(os.path.join(current_dir, "ikoner", "bot.png")) else "🤖"
-
 if "messages" not in st.session_state: st.session_state.messages = []
 
+# Rita ut chatthistoriken
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=(avatar_user if msg["role"]=="user" else avatar_bot)):
         render_content(msg["content"])
 
+# Chat-input
 if query := st.chat_input("Fråga el-assistenten..."):
     if any(ord in query.lower() for ord in ["pierfekt", "tack", "bra jobbat"]): st.balloons()
         
@@ -231,17 +232,25 @@ if query := st.chat_input("Fråga el-assistenten..."):
     
     with st.chat_message("assistant", avatar=avatar_bot):
         status_box = st.empty()
-        status_texts = ["*Gräver i manualerna...*", "*Kopplar trådarna...*", "*Laddar upp svaret...*", "*Bläddrar i Ahlsell-katalogen...*"]
+        status_texts = [
+            "*Gräver djupt i Isolerabs manualer...*",
+            "*Kopplar rätt trådar för att ge dig ett bra svar...*",
+            "*Laddar upp lite extra spänning inför svaret...*",
+            "*Bläddrar frenetiskt i Ahlsell-katalogen...*",
+            "*Beräknar det mest pierfekta svaret...*"
+        ]
         status_box.markdown(random.choice(status_texts))
         
         try:
+            # Vi knackar hårt på dörren med k=15
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
             
-            safety_warning = "⚠️ **SÄKERHET:** *Är du minsta osäker, kontakta elansvarig!*\n\n"
+            safety_warning = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta alltid din elansvarige innan du börjar skruva!*\n\n"
             full_res = safety_warning
             message_placeholder = st.empty()
             
+            # Streaming-loop
             for chunk in chain.stream({"input": query}):
                 if "answer" in chunk:
                     status_box.empty()
@@ -249,12 +258,22 @@ if query := st.chat_input("Fråga el-assistenten..."):
                     message_placeholder.markdown(full_res, unsafe_allow_html=True)
             
             message_placeholder.empty()
-            if "Jag hittar inte detta i Isolerabs manualer" in full_res:
-                with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
             
+            # Logga frågor som AI:n inte hittade i manualerna
+            if "Jag hittar inte detta i manualerna" in full_res:
+                try:
+                    with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
+                except: pass
+            
+            # Rendera färdigt svar med bilder
             render_content(full_res)
             st.session_state.messages.append({"role": "assistant", "content": full_res})
             
         except Exception as e:
-            st.error("Ett fel uppstod i kommunikationen med Google. Prova igen om en stund.")
-            if is_admin: st.code(str(e))
+            # Töm rutorna vid fel
+            if 'status_box' in locals(): status_box.empty()
+            if 'message_placeholder' in locals(): message_placeholder.empty()
+            
+            # DIAGNOSTIK: Visa exakt vad som hände med Google API
+            st.error("❌ Ett tekniskt fel uppstod i kommunikationen med Google:")
+            st.code(str(e))
