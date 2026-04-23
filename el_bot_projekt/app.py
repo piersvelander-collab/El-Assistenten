@@ -3,6 +3,7 @@ import os
 import re
 import base64
 import time
+import random
 from PIL import Image
 import streamlit.components.v1 as components
 from langchain_classic.chains import create_retrieval_chain
@@ -37,8 +38,8 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    # Rätt modell! Blixtsnabba 2.5-flash med streaming aktiverat
-    return ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.0, max_retries=5, streaming=True)
+    # BYTT TILL "PRO" FÖR ATT SLIPPA ÖVERBELASTNING. STREAMING AKTIVERAT.
+    return ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.0, max_retries=5, streaming=True)
 
 vectorstore = load_knowledge_base()
 chat_model = get_chat_model()
@@ -335,13 +336,11 @@ def render_content(text):
                 components.html(f"<pre class='mermaid'>{content}</pre><script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';mermaid.initialize({{startOnLoad:true,theme:'dark',securityLevel:'loose'}});</script>", height=400, scrolling=True)
 
 # --- 7. AI-MOTOR OCH CHATT ---
-import random
-
 system_prompt = (
     "Du är Isolerabs el-mentor och materialexpert. Din uppgift är att svara med auktoritet, fakta och praktisk erfarenhet.\n\n"
-    "REGLER FÖR BILDER:\n"
+    "REGLER FÖR BILDER & SCHEMAN:\n"
     "1. Du får ABSOLUT INTE hitta på egna filnamn för bilder. Använd ENDAST [BILD: filnamn.jpg] om exakt det filnamnet redan står angivet i texten/manualen du läser.\n"
-    "2. 2. Om du vill illustrera något, men ingen specifik bild finns nämnd, rita ett Mermaid-schema med [SCHEMA: graph TD...]. VIKTIGT: Du MÅSTE använda radbrytningar (Enter) efter varje rad i Mermaid-koden, annars kraschar ritverktyget. Skriv aldrig hela koden på en enda rad.\n\n"
+    "2. Om du vill illustrera något, men ingen specifik bild finns nämnd, rita ett Mermaid-schema med [SCHEMA: graph TD...]. VIKTIGT: Du MÅSTE använda radbrytningar (Enter) efter varje rad i Mermaid-koden, annars kraschar ritverktyget. Skriv aldrig hela koden på en enda rad.\n\n"
     "REGLER FÖR MATERIAL & INKÖP:\n"
     "1. Om användaren ber om en INKÖPSLISTA, 'allt material' eller 'vad som ska beställas': Du SKA hämta och presentera SAMTLIGA artiklar som finns i 'Isolerabs Materialkatalog' (24_materialkatalog_ahlsell.md). Missa inga rader. Presentera dem i en snygg tabell med art.nr och fungerande länkar.\n"
     "2. VAR SJÄLVTÄNKANDE: När du presenterar ett material (t.ex. en specifik kabel eller klämma), använd din allmänna expertis som el-mentor för att förklara VARFÖR vi använder just detta material, tekniska fördelar, montage-tips eller vad man bör tänka på (t.ex. temperatur, böjradie eller tidsvinst). Var mer beskrivande än vad som bara står i katalogen.\n"
@@ -391,7 +390,6 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
                 status_box = st.empty()
                 status_box.markdown(random.choice(status_texts))
                 
-                # SÄNKT K-VÄRDE TILL 5 FÖR FELSÖKNING
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
                 chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                 
@@ -417,7 +415,6 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
                 lyckades = True
             
             except Exception as e:
-                # --- DIAGNOSTIK-LÄGE ---
                 if 'status_box' in locals(): status_box.empty()
                 if 'message_placeholder' in locals(): message_placeholder.empty()
                 
