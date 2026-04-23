@@ -36,7 +36,7 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, max_retries=5)
+    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.0, max_retries=5)
 
 vectorstore = load_knowledge_base()
 chat_model = get_chat_model()
@@ -337,34 +337,49 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
-        with st.spinner("Hämtar teknisk data och planerar svar..."):
+        with st.spinner("Söker i manualerna..."):
             max_försök = 2
             försök = 0
             lyckades = False
             while försök < max_försök and not lyckades:
                 try:
-                    # K-värdet satt till 20 så att hon kan läsa in hela materiallistan på en gång
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 20})
+                    # K-värde 15 är den perfekta balansen för minne vs snabbhet
+                    retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
                     chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-                    response = chain.invoke({"input": query})
-                    res_text = response["answer"]
-                    
-                    if "Jag hittar inte detta i Isolerabs manualer" in res_text:
-                        with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
-                        if is_admin: st.toast("📌 Frågan loggad för inlärning!")
                     
                     # --- DEN FASTA VARNINGSTEXTEN ---
                     safety_warning = "⚠️ **VIKTIGT:** *Jag är en AI-assistent och finns här för att guida dig så gott jag kan, men mina svar är inte till 100 % garanterade. Är du det minsta osäker MÅSTE du alltid kontakta din elansvarige innan du påbörjar något arbete på anläggningen!*\n\n"
                     
-                    full_res = safety_warning + res_text
+                    full_res = safety_warning
+                    
+                    # Skapa en tillfällig textruta för live-skriften (streaming)
+                    message_placeholder = st.empty()
+                    message_placeholder.markdown(full_res + "▌", unsafe_allow_html=True)
+                    
+                    # Kör kedjan och strömma ut svaret bit för bit
+                    for chunk in chain.stream({"input": query}):
+                        if "answer" in chunk:
+                            full_res += chunk["answer"]
+                            message_placeholder.markdown(full_res + "▌", unsafe_allow_html=True)
+                    
+                    # Rensa live-rutan när hon skrivit klart
+                    message_placeholder.empty()
+                    
+                    # Logga saknade frågor
+                    if "Jag hittar inte detta i Isolerabs manualer" in full_res:
+                        with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
+                        if is_admin: st.toast("📌 Frågan loggad för inlärning!")
+                    
+                    # Använd den snygga render_content för att aktivera bilder/diagram i slutresultatet
                     render_content(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
                     lyckades = True
+                
                 except Exception as e:
                     if "503" in str(e) or "UNAVAILABLE" in str(e):
                         försök += 1
                         if försök < max_försök:
-                            st.warning("⏳ Hjärnan är lite belastad hos Google just nu. Väntar 3 sekunder...")
+                            st.warning("⏳ Google-servern är lite varm. Tänker om... 3 sekunder...")
                             time.sleep(3)
                         else: st.warning("⏳ Nu är den Pierfekta hjärnan överbelastad. Vänta en minut och försök igen.")
                     else: break
