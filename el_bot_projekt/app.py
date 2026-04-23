@@ -42,7 +42,6 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    # VIKTIGT: Vi använder Gemini 2.5 Pro som motor
     return ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.0, max_retries=5, streaming=True)
 
 vectorstore = load_knowledge_base()
@@ -102,7 +101,6 @@ with st.sidebar:
         st.success("✅ Inloggad som Admin")
         st.divider()
         
-        # FULLSTÄNDIG LOGIK FÖR SAKNADE FRÅGOR
         log_lines = []
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
@@ -136,7 +134,6 @@ with st.sidebar:
         
         st.divider()
         
-        # FULLSTÄNDIG LOGIK FÖR BILD-LOGG
         if os.path.exists(img_log_path):
             st.header("📸 Önskade Bilder")
             with open(img_log_path, "r", encoding="utf-8") as f:
@@ -158,13 +155,85 @@ else:
     if not google_api_key: st.stop()
     os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 5. HEADER ---
+# --- 5. HEADER OCH VERKTYGSLÅDA ---
 if os.path.exists(logo_path): st.image(logo_path, width=120)
 st.markdown("<h1 class='pierfekta-header'>ISOLERABs Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
 
 if not vectorstore:
     st.error("⚠️ Databasen laddas... vänligen vänta.")
     st.stop()
+
+# VERKTYG 1: Färg-hjälpen
+with st.expander("📸 Färg-Hjälpen (Kamera)"):
+    st.warning("⚠️ **LIVSVIKTIGT:** Kamerablixt och skuggor kan få mig att se fel färg. Kontrollmäta alltid!")
+    cam_photo = st.camera_input("Ta en bild på dosan")
+    if cam_photo and st.button("Analysera färgerna", use_container_width=True):
+        with st.spinner("Granskar bilden..."):
+            try:
+                img_b64 = base64.b64encode(cam_photo.getvalue()).decode()
+                img_data = f"data:image/jpeg;base64,{img_b64}"
+                vision_msg = HumanMessage(content=[
+                    {"type": "text", "text": "Du är färg-tolk åt en färgblind elektriker. Beskriv vilka färger kablarna har baserat på deras placering (t.ex. vänster, mitten, höger). Var extra noga med rött, grönt och brunt."},
+                    {"type": "image_url", "image_url": {"url": img_data}}
+                ])
+                vision_res = chat_model.invoke([vision_msg])
+                st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för färganalys.*"})
+                st.session_state.messages.append({"role": "assistant", "content": vision_res.content})
+                st.rerun()
+            except Exception as e:
+                st.error("Fel vid bildanalys. Kan bero på nätverket, försök igen.")
+
+# VERKTYG 2: Lärlings-Quizet
+if 'quiz_q_num' not in st.session_state: st.session_state.quiz_q_num = 0
+if 'quiz_score' not in st.session_state: st.session_state.quiz_score = 0
+if 'quiz_show_exp' not in st.session_state: st.session_state.quiz_show_exp = False
+if 'quiz_selected' not in st.session_state: st.session_state.quiz_selected = None
+
+# Ett urval av frågorna för att hålla koden rimligt stor
+quiz_data = [
+    {"q": "Vilket år totalförbjöds asbest i Sverige?", "opts": ["1972", "1982", "1992"], "ans": "1982", "exp": "Asbest förbjöds 1982. Hus byggda eller renoverade före detta år är alltid en riskzon."},
+    {"q": "Vilken är den normala monteringshöjden för strömbrytare enligt svensk standard?", "opts": ["0.9 m", "1.0 m", "1.2 m"], "ans": "1.0 m", "exp": "Standardhöjden för brytare i bostäder är vanligtvis 1000 mm (1.0 meter) över färdigt golv."},
+    {"q": "Vilken IP-klass krävs som minimum vid installation av ett vägguttag på en kallvind?", "opts": ["IP20", "IP21", "IP44"], "ans": "IP44", "exp": "IP44 (Sköljtätt) är standard för fuktiga utrymmen och vindar där kondens och dropp uppstår."},
+    {"q": "Vad är det minsta godkända värdet vid en isolationsmätning enligt föreskrifterna?", "opts": ["1 Mohm (Megaohm)", "500 kohm (Kiloohm)", "10 Mohm"], "ans": "1 Mohm (Megaohm)", "exp": "Kravet är >1 Mohm, men en frisk nydragen kabel ligger oftast på >500 Mohm."},
+    {"q": "Får du installera ett ojordat uttag vid utökning av en anläggning i ett rum som redan har jordade uttag?", "opts": ["Ja, om kunden ber om det", "Nej, aldrig blanda jordat och ojordat i samma rum", "Ja, om det är mer än 2 meter från de andra"], "ans": "Nej, aldrig blanda jordat och ojordat i samma rum", "exp": "Att blanda är livsfarligt. Vid fel kan en apparat bli spänningsförande medan den andra är jordad."}
+]
+
+with st.expander("🎓 Isolerabs Lärlings-Quiz"):
+    st.markdown("Testa dina kunskaper! Hur bra koll har du på säkerhet och material?")
+    
+    if st.session_state.quiz_q_num < len(quiz_data):
+        q_info = quiz_data[st.session_state.quiz_q_num]
+        st.markdown(f"**Fråga {st.session_state.quiz_q_num + 1} av {len(quiz_data)}**")
+        st.write(q_info["q"])
+
+        if not st.session_state.quiz_show_exp:
+            selected = st.radio("Välj ditt svar:", q_info["opts"], key=f"radio_{st.session_state.quiz_q_num}")
+            if st.button("Svara", use_container_width=True):
+                st.session_state.quiz_selected = selected
+                st.session_state.quiz_show_exp = True
+                if selected == q_info["ans"]:
+                    st.session_state.quiz_score += 1
+                st.rerun()
+        else:
+            st.radio("Ditt val:", q_info["opts"], index=q_info["opts"].index(st.session_state.quiz_selected), disabled=True)
+            if st.session_state.quiz_selected == q_info["ans"]:
+                st.success("✅ Rätt svar! Pierfekt!")
+            else:
+                st.error(f"❌ Fel. Rätt svar är: {q_info['ans']}")
+            st.info(f"**💡 Förklaring:** {q_info['exp']}")
+
+            if st.button("Nästa fråga", use_container_width=True):
+                st.session_state.quiz_show_exp = False
+                st.session_state.quiz_q_num += 1
+                st.rerun()
+    else:
+        st.balloons()
+        st.success(f"🎉 Quizet är klart! Du fick {st.session_state.quiz_score} av {len(quiz_data)} rätt.")
+        if st.button("Börja om", use_container_width=True):
+            st.session_state.quiz_q_num = 0
+            st.session_state.quiz_score = 0
+            st.session_state.quiz_show_exp = False
+            st.rerun()
 
 # --- 6. BILDFUNKTION ---
 def render_content(text):
@@ -219,7 +288,6 @@ for msg in st.session_state.messages:
         render_content(msg["content"])
 
 if query := st.chat_input("Fråga el-assistenten..."):
-    # Easter eggs!
     if any(ord in query.lower() for ord in ["pierfekt", "tack", "bra jobbat"]): st.balloons()
 
     st.session_state.messages.append({"role": "user", "content": query})
@@ -237,7 +305,6 @@ if query := st.chat_input("Fråga el-assistenten..."):
         status_box.markdown(random.choice(status_texts))
         
         try:
-            # Vi knackar hårt på dörren med k=15
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
             
@@ -252,7 +319,6 @@ if query := st.chat_input("Fråga el-assistenten..."):
             
             message_placeholder.empty()
             
-            # Logga frågor som AI:n inte hittade i manualerna
             if "Jag hittar inte detta i manualerna" in full_res:
                 try:
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
@@ -262,10 +328,8 @@ if query := st.chat_input("Fråga el-assistenten..."):
             st.session_state.messages.append({"role": "assistant", "content": full_res})
             
         except Exception as e:
-            # Töm rutorna vid fel
             if 'status_box' in locals(): status_box.empty()
             if 'message_placeholder' in locals(): message_placeholder.empty()
             
-            # DIAGNOSTIK: Visa exakt vad som hände med Google API
             st.error("❌ Ett tekniskt fel uppstod i kommunikationen med Google:")
             st.code(str(e))
