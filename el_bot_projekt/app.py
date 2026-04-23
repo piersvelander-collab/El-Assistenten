@@ -335,6 +335,8 @@ def render_content(text):
                 components.html(f"<pre class='mermaid'>{content}</pre><script type='module'>import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';mermaid.initialize({{startOnLoad:true,theme:'dark',securityLevel:'loose'}});</script>", height=400, scrolling=True)
 
 # --- 7. AI-MOTOR OCH CHATT ---
+import random
+
 system_prompt = (
     "Du är Isolerabs el-mentor och materialexpert. Din uppgift är att svara med auktoritet, fakta och praktisk erfarenhet.\n\n"
     "REGLER FÖR BILDER:\n"
@@ -375,49 +377,49 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
         lyckades = False
         while försök < max_försök and not lyckades:
             try:
-                # --- STEG 1: Söker i databasen (med snygg status-text) ---
+                # --- LISTA MED SLUMPMÄSSIGA STATUS-TEXTER ---
+                status_texts = [
+                    "🔍 *Gräver djupt i Isolerabs manualer...*",
+                    "🧠 *Kopplar rätt trådar för att ge dig ett bra svar...*",
+                    "⚡ *Laddar upp lite extra spänning inför svaret...*",
+                    "📖 *Bläddrar frenetiskt i Ahlsell-katalogen...*",
+                    "💡 *Tänker så det knakar (men oroa dig inte, säkringen håller)...*",
+                    "🛠️ *Hämtar verktygen från den digitala servicebilen...*",
+                    "⏱️ *Beräknar det mest pierfekta svaret...*"
+                ]
+                
+                # Visa en slumpmässig text från listan ovan
                 status_box = st.empty()
-                status_box.markdown("🔍 *Nu letar jag i manualerna...*")
+                status_box.markdown(random.choice(status_texts))
                 
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
-                # Hämtar dokumenten i bakgrunden
                 docs = retriever.invoke(query)
                 
-                # --- STEG 2: Formulerar svar (uppdaterar status-texten) ---
-                status_box.markdown("🧠 *Nu ska jag skriva ihop något bra...*")
-                
-                # Förbereder AI-kedjan
                 document_chain = create_stuff_documents_chain(chat_model, prompt)
                 
                 safety_warning = "⚠️ **VIKTIGT:** *Jag är en AI-assistent och finns här för att guida dig så gott jag kan, men mina svar är inte till 100 % garanterade. Är du det minsta osäker MÅSTE du alltid kontakta din elansvarige innan du påbörjar något arbete på anläggningen!*\n\n"
                 full_res = safety_warning
                 
-                # Förbereder rutan där texten ska rulla fram
                 message_placeholder = st.empty()
                 
-                # --- STEG 3: Strömmar ut texten (och rensar status-rutan) ---
+                # Strömmar ut texten och städar bort status-texten
                 for chunk in document_chain.stream({"context": docs, "input": query}):
                     if "answer" in chunk:
-                        # Töm statusboxen så fort hon börjar skriva
-                        status_box.empty()
+                        status_box.empty() # Gömmer den slumpmässiga texten när svaret börjar
                         full_res += chunk["answer"]
-                        # Här är det vita strecket borttaget!
                         message_placeholder.markdown(full_res, unsafe_allow_html=True)
                 
-                # Rensa live-rutan när hon skrivit klart
                 message_placeholder.empty()
                 
                 if "Jag hittar inte detta i Isolerabs manualer" in full_res:
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
                     if is_admin: st.toast("📌 Frågan loggad för inlärning!")
                 
-                # Rendera slutresultatet med bilder och diagram
                 render_content(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
                 lyckades = True
             
             except Exception as e:
-                # Städa upp rutorna om något kraschar
                 if 'status_box' in locals(): status_box.empty()
                 if 'message_placeholder' in locals(): message_placeholder.empty()
                 
