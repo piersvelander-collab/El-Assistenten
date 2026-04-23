@@ -37,8 +37,8 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    # Använder den blixtsnabba och kostnadseffektiva 1.5-flash
-    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.0, max_retries=5)
+    # Lade till streaming=True för att tillåta live-skrift
+    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.0, max_retries=5, streaming=True)
 
 vectorstore = load_knowledge_base()
 chat_model = get_chat_model()
