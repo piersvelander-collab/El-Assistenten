@@ -42,7 +42,7 @@ def load_knowledge_base():
 
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
-    # VIKTIGT: Vi använder nu Gemini 2.5 Pro som huvudmotor
+    # VIKTIGT: Vi använder Gemini 2.5 Pro som motor
     return ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.0, max_retries=5, streaming=True)
 
 vectorstore = load_knowledge_base()
@@ -51,11 +51,9 @@ chat_model = get_chat_model()
 # --- 2. MOBILANPASSAD DESIGN OCH CSS ---
 st.markdown("""
 <style>
-    /* Grundfärger Isolerab Blå */
     .stApp, [data-testid="stSidebar"] { background-color: #0d014d !important; }
     p, li, label, h1, h2, h3, h4, h5, h6, .stMarkdown, div[data-testid="stChatMessageContent"] { color: #ffffff !important; }
     
-    /* Header-stil Pierfekt Grön */
     .pierfekta-header { 
         color: #82e300 !important; 
         font-weight: bold; 
@@ -63,7 +61,6 @@ st.markdown("""
         margin-bottom: 1rem; 
     }
     
-    /* Mobilanpassning - Större knappar och bättre text */
     @media (max-width: 640px) {
         .pierfekta-header { font-size: 1.4rem; }
         .stButton > button { width: 100%; height: 3.5rem; font-size: 1.1rem !important; margin-bottom: 10px; }
@@ -73,12 +70,10 @@ st.markdown("""
 
     .highlight { color: #82e300 !important; font-weight: bold; }
     
-    /* Input-fält */
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
         background-color: rgba(0, 0, 0, 0.4) !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
-    /* Knappar */
     .stButton > button { 
         background-color: rgba(0, 0, 0, 0.4) !important; 
         color: #ffffff !important; 
@@ -86,15 +81,13 @@ st.markdown("""
         border-radius: 8px;
     }
     
-    img { max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3); }
+    img { max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.3); margin: 10px 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DÖRRVAKTEN & SIDOMENYN ---
+# --- 3. SIDOMENYN & DÖRRVAKTEN ---
 with st.sidebar:
     st.markdown("### 🛠️ Verktyg")
-    
-    # Knapp för att rensa chatten
     if st.button("🧹 Rensa konversation", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
@@ -109,7 +102,7 @@ with st.sidebar:
         st.success("✅ Inloggad som Admin")
         st.divider()
         
-        # Sektion för saknade frågor
+        # FULLSTÄNDIG LOGIK FÖR SAKNADE FRÅGOR
         log_lines = []
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
@@ -136,16 +129,20 @@ with st.sidebar:
                             for q in unanswered_qs: f.write(f"- {q}\n")
                         st.success("✅ Fakta inlärd!")
                         st.rerun()
-                    except: st.error("Kunde inte spara.")
+                    except Exception as e:
+                        st.error(f"Kunde inte spara: {e}")
+        else:
+            st.info("Inga obesvarade frågor i loggen.")
         
         st.divider()
-        # Sektion för bild-logg
+        
+        # FULLSTÄNDIG LOGIK FÖR BILD-LOGG
         if os.path.exists(img_log_path):
             st.header("📸 Önskade Bilder")
             with open(img_log_path, "r", encoding="utf-8") as f:
                 imgs = list(set(f.readlines()))
             if imgs:
-                st.info("AI:n efterfrågade dessa bilder:")
+                st.info("AI:n letade efter dessa bilder men hittade dem inte:")
                 for img in imgs: st.code(img.strip())
                 if st.button("Rensa bild-logg", use_container_width=True):
                     os.remove(img_log_path)
@@ -169,10 +166,9 @@ if not vectorstore:
     st.error("⚠️ Databasen laddas... vänligen vänta.")
     st.stop()
 
-# --- 6. BILDFUNKTION (ENBART RIKTIGA BILDER) ---
+# --- 6. BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
-    # Letar bara efter [BILD: ...]
     parts = re.split(r'\[(?:BILD):\s*([\s\S]+?)\]', text)
     for i, part in enumerate(parts):
         if i % 2 == 0:
@@ -180,34 +176,31 @@ def render_content(text):
                 st.markdown(part.strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>"), unsafe_allow_html=True)
         else:
             content = part.strip()
-            if any(content.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
-                actual_file = None
-                if os.path.exists(image_dir):
-                    try:
-                        for f in os.listdir(image_dir):
-                            if f.lower() == content.lower():
-                                actual_file = os.path.join(image_dir, f)
-                                break
-                    except: pass
-                
-                if actual_file:
-                    st.image(actual_file, use_container_width=True)
-                else:
-                    # Logga tyst om bilden saknas
-                    try:
-                        with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
-                    except: pass
-                    if is_admin: st.sidebar.warning(f"⚠️ Bild saknas i mappen: {content}")
+            actual_file = None
+            if os.path.exists(image_dir):
+                for f in os.listdir(image_dir):
+                    if f.lower() == content.lower():
+                        actual_file = os.path.join(image_dir, f)
+                        break
+            
+            if actual_file:
+                st.image(actual_file, use_container_width=True)
+            else:
+                try:
+                    with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
+                except: pass
+                if is_admin: st.sidebar.warning(f"⚠️ Bild saknas i mappen: {content}")
 
-# --- 7. AI-MOTOR OCH CHATT ---
+# --- 7. AI-MOTOR (GEMINI 2.5 PRO) ---
 system_prompt = (
-    "Du är Isolerabs el-mentor och materialexpert. Svara med auktoritet, precision och erfarenhet.\n\n"
+    "Du är Isolerabs el-mentor och materialexpert. Svara med auktoritet och precision.\n\n"
     "REGLER FÖR BILDER:\n"
-    "1. PROAKTIV BILDVISNING: För varje sak du förklarar, leta ALLTID i texten/manualen efter om det finns en tillhörande bild. Om det finns en bild för kontexten SKA du alltid visa den genom att skriva [BILD: filnamn.jpg].\n"
-    "2. INGA FANTASIBILDER: Hitta ALDRIG på egna filnamn. Använd ENDAST exakta filnamn från manualen.\n"
-    "3. Rita ALDRIG egna scheman med Mermaid.\n\n"
+    "1. DU SKA VARA VISUELL: För varje instruktionssteg du skriver, leta aktivt efter en bild i manualerna som kan illustrera det du pratar om.\n"
+    "2. INGA FANTASIBILDER: Använd ENDAST exakta filnamn som finns i manualerna (t.ex. [BILD: aqua_stark_inkoppling.jpg]). Skapa aldrig egna namn.\n"
+    "3. AQUA STARK: När du förklarar inkopplingen av vägguttaget Aqua Stark, MÅSTE du inkludera taggen [BILD: aqua_stark_inkoppling.jpg] under det steget.\n"
+    "4. MERMAID: Du får ALDRIG rita egna scheman med Mermaid.\n\n"
     "REGLER FÖR MATERIAL:\n"
-    "1. Vid frågor om vägguttag, utgå ALLTID från Aqua Stark IP44. Förklara inkopplingen steg-för-steg och du MÅSTE lägga in [BILD: aqua_stark_inkoppling.jpg] under steget för själva inkopplingen!\n"
+    "1. Utgå alltid från Aqua Stark IP44 vid frågor om uttag. Förklara inkopplingen steg-för-steg.\n"
     "2. Hämta materialfakta från katalogen. Förklara fördelar som tidsvinst och säkerhet.\n\n"
     "ALLMÄNT:\n"
     "1. Om du inte hittar svaret i Isolerabs manualer, inled med: 'Jag hittar inte detta i manualerna, men som din el-mentor rekommenderar jag följande:'.\n"
@@ -221,15 +214,14 @@ avatar_bot = os.path.join(current_dir, "ikoner", "bot.png") if os.path.exists(os
 
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Rita ut chatthistoriken
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=(avatar_user if msg["role"]=="user" else avatar_bot)):
         render_content(msg["content"])
 
-# Chat-input
 if query := st.chat_input("Fråga el-assistenten..."):
+    # Easter eggs!
     if any(ord in query.lower() for ord in ["pierfekt", "tack", "bra jobbat"]): st.balloons()
-        
+
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
@@ -249,11 +241,9 @@ if query := st.chat_input("Fråga el-assistenten..."):
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
             
-            safety_warning = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta alltid din elansvarige innan du börjar skruva!*\n\n"
-            full_res = safety_warning
+            full_res = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta alltid din elansvarige!*\n\n"
             message_placeholder = st.empty()
             
-            # Streaming-loop
             for chunk in chain.stream({"input": query}):
                 if "answer" in chunk:
                     status_box.empty()
@@ -268,7 +258,6 @@ if query := st.chat_input("Fråga el-assistenten..."):
                     with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
                 except: pass
             
-            # Rendera färdigt svar med bilder
             render_content(full_res)
             st.session_state.messages.append({"role": "assistant", "content": full_res})
             
