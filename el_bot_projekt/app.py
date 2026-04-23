@@ -343,8 +343,8 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
             lyckades = False
             while försök < max_försök and not lyckades:
                 try:
-                    # K-värdet satt till 20 så att hon kan läsa in hela materiallistan på en gång
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 20})
+                    # K-värdet satt till 40 så att hon kan läsa in hela materiallistan på en gång
+                    retriever = vectorstore.as_retriever(search_kwargs={"k": 40})
                     chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
                     response = chain.invoke({"input": query})
                     res_text = response["answer"]
