@@ -372,7 +372,7 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
-      max_försök = 2
+        max_försök = 2
         försök = 0
         lyckades = False
         while försök < max_försök and not lyckades:
