@@ -338,8 +338,8 @@ def render_content(text):
 system_prompt = (
     "Du är Isolerabs el-mentor och materialexpert. Din uppgift är att svara med auktoritet, fakta och praktisk erfarenhet.\n\n"
     "REGLER FÖR BILDER:\n"
-    "1. Om du förklarar något som vinner på att visas (t.ex. ett specifikt material eller koppling), föreslå en bild genom att skriva [BILD: beskrivande_namn.jpg].\n"
-    "2. Du behöver inte veta om bilden finns; systemet loggar ditt förslag så att chefen kan skapa bilden senare. HITTA INTE PÅ egna varningar om att bilder saknas.\n\n"
+    "1. Du får ABSOLUT INTE hitta på egna filnamn för bilder. Använd ENDAST [BILD: filnamn.jpg] om exakt det filnamnet redan står angivet i texten/manualen du läser.\n"
+    "2. Om du vill illustrera något, men ingen specifik bild finns nämnd, rita hellre ett Mermaid-schema med [SCHEMA: graph TD...] istället för att gissa fram en bild.\n\n"
     "REGLER FÖR MATERIAL & INKÖP:\n"
     "1. Om användaren ber om en INKÖPSLISTA, 'allt material' eller 'vad som ska beställas': Du SKA hämta och presentera SAMTLIGA artiklar som finns i 'Isolerabs Materialkatalog' (24_materialkatalog_ahlsell.md). Missa inga rader. Presentera dem i en snygg tabell med art.nr och fungerande länkar.\n"
     "2. VAR SJÄLVTÄNKANDE: När du presenterar ett material (t.ex. en specifik kabel eller klämma), använd din allmänna expertis som el-mentor för att förklara VARFÖR vi använder just detta material, tekniska fördelar, montage-tips eller vad man bör tänka på (t.ex. temperatur, böjradie eller tidsvinst). Var mer beskrivande än vad som bara står i katalogen.\n"
@@ -370,56 +370,66 @@ if query := st.chat_input("Ställ din fråga... (Tips: Använd mikrofonen 🎙�
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
-        with st.spinner("Söker i manualerna..."):
-            max_försök = 2
-            försök = 0
-            lyckades = False
-            while försök < max_försök and not lyckades:
-                try:
-                    retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
-                    chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-                    
-                    safety_warning = "⚠️ **VIKTIGT:** *Jag är en AI-assistent och finns här för att guida dig så gott jag kan, men mina svar är inte till 100 % garanterade. Är du det minsta osäker MÅSTE du alltid kontakta din elansvarige innan du påbörjar något arbete på anläggningen!*\n\n"
-                    
-                    full_res = safety_warning
-                    
-                    # Skapa platshållare för live-skrift
-                    message_placeholder = st.empty()
-                    message_placeholder.markdown(full_res + "▌", unsafe_allow_html=True)
-                    
-                    # Kör kedjan och strömma
-                    for chunk in chain.stream({"input": query}):
-                        if "answer" in chunk:
-                            full_res += chunk["answer"]
-                            message_placeholder.markdown(full_res + "▌", unsafe_allow_html=True)
-                    
-                    # Rensa och rita upp det färdiga svaret snyggt
-                    message_placeholder.empty()
-                    
-                    if "Jag hittar inte detta i Isolerabs manualer" in full_res:
-                        with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
-                        if is_admin: st.toast("📌 Frågan loggad för inlärning!")
-                    
-                    render_content(full_res)
-                    st.session_state.messages.append({"role": "assistant", "content": full_res})
-                    lyckades = True
+        max_försök = 2
+        försök = 0
+        lyckades = False
+        while försök < max_försök and not lyckades:
+            try:
+                # --- STEG 1: Söker i databasen (med snygg status-text) ---
+                status_box = st.empty()
+                status_box.markdown("🔍 *Nu letar jag i manualerna...*")
                 
-                except Exception as e:
-                    # Rensa den trasiga rutan om ett fel uppstår
-                    if 'message_placeholder' in locals():
-                        message_placeholder.empty()
-                    
-                    err_str = str(e)
-                    # Hantera Googles vanliga överbelastningsfel
-                    if "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str or "ResourceExhausted" in err_str:
-                        försök += 1
-                        if försök < max_försök:
-                            st.warning("⏳ Google-servern är lite varm. Försöker igen om 3 sekunder...")
-                            time.sleep(3)
-                        else: 
-                            st.error("❌ Google-servern är för överbelastad. Vänta en minut och försök igen.")
-                            break
+                retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
+                # Hämtar dokumenten i bakgrunden
+                docs = retriever.invoke(query)
+                
+                # --- STEG 2: Formulerar svar (uppdaterar status-texten) ---
+                status_box.markdown("🧠 *Nu ska jag skriva ihop något bra...*")
+                
+                # Förbereder AI-kedjan
+                document_chain = create_stuff_documents_chain(chat_model, prompt)
+                
+                safety_warning = "⚠️ **VIKTIGT:** *Jag är en AI-assistent och finns här för att guida dig så gott jag kan, men mina svar är inte till 100 % garanterade. Är du det minsta osäker MÅSTE du alltid kontakta din elansvarige innan du påbörjar något arbete på anläggningen!*\n\n"
+                full_res = safety_warning
+                
+                # Förbereder rutan där texten ska rulla fram
+                message_placeholder = st.empty()
+                
+                # --- STEG 3: Strömmar ut texten (och rensar status-rutan) ---
+                for chunk in document_chain.stream({"context": docs, "input": query}):
+                    if "answer" in chunk:
+                        # Töm statusboxen så fort hon börjar skriva
+                        status_box.empty()
+                        full_res += chunk["answer"]
+                        # Här är det vita strecket borttaget!
+                        message_placeholder.markdown(full_res, unsafe_allow_html=True)
+                
+                # Rensa live-rutan när hon skrivit klart
+                message_placeholder.empty()
+                
+                if "Jag hittar inte detta i Isolerabs manualer" in full_res:
+                    with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
+                    if is_admin: st.toast("📌 Frågan loggad för inlärning!")
+                
+                # Rendera slutresultatet med bilder och diagram
+                render_content(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res})
+                lyckades = True
+            
+            except Exception as e:
+                # Städa upp rutorna om något kraschar
+                if 'status_box' in locals(): status_box.empty()
+                if 'message_placeholder' in locals(): message_placeholder.empty()
+                
+                err_str = str(e)
+                if "503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str or "ResourceExhausted" in err_str:
+                    försök += 1
+                    if försök < max_försök:
+                        st.warning("⏳ Google-servern är lite varm. Försöker igen om 3 sekunder...")
+                        time.sleep(3)
                     else: 
-                        # Om det är ett annat fel, skriv ut det i klartext!
-                        st.error(f"❌ Ett oväntat tekniskt fel uppstod:\n\n`{err_str}`")
+                        st.error("❌ Google-servern är för överbelastad. Vänta en minut och försök igen.")
                         break
+                else: 
+                    st.error(f"❌ Ett oväntat tekniskt fel uppstod:\n\n`{err_str}`")
+                    break
