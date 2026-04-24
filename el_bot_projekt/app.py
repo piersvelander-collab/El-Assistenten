@@ -32,6 +32,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# INITIERA KAMERA-TILLSTÅND
+if "show_camera" not in st.session_state: 
+    st.session_state.show_camera = False
+
 # --- OPTIMERING: CACHING AV TUNGA FUNKTIONER ---
 @st.cache_resource(show_spinner=False)
 def load_knowledge_base():
@@ -128,65 +132,64 @@ if not vectorstore:
     st.error("⚠️ Databasen laddas... vänta några sekunder.")
     st.stop()
 
-# --- 5.1 NYTT VERKTYG: RUTT & PACKLISTA ---
-st.markdown("### 🚗 Nästa Jobb: Rutt & Packlista")
-with st.expander("Klicka här när du ska åka till nästa kund", expanded=False):
-    st.info("Vi kör standardjobbet: Klamring till uttag vid healthbox.")
-    dest_address = st.text_input("Skriv in kundens adress:")
-    
-    st.markdown("---")
-    st.warning("⚠️ **Har du allt det här i bilen?**")
-    st.markdown("""
-    * **Vägguttag:** Aqua Stark IP44
-    * **Kabel:** EKLK / EXQ (Tillräcklig längd)
-    * **Fästmaterial:** Klammer, skruv & plugg
-    * **Verktyg:** Skruvdragare, skalare, multimeter
-    """)
-    
-    # Visar knappen direkt när de fyllt i en adress!
-    if dest_address:
-        maps_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(dest_address)}"
-        st.markdown(f"""
-            <a href="{maps_url}" target="_blank">
-                <button style="width: 100%; height: 3.5rem; background-color: #82e300; color: #0d014d; font-weight: bold; border-radius: 8px; font-size: 1.1rem; border: none; cursor: pointer;">
-                    ✅ ALLT I BILEN, NU ÅKER VI!
-                </button>
-            </a>
-        """, unsafe_allow_html=True)
-
-# --- 6. ÖVRIGA VERKTYG (KAMERA & QUIZ) ---
-with st.expander("📸 Färg-Hjälpen (Kamera)"):
-    cam_photo = st.camera_input("Ta en bild på kablarna")
-    if cam_photo and st.button("Analysera färgerna", use_container_width=True):
-        st.info("Analyserar färgerna...")
-
-# --- 7. BILDFUNKTION ---
+# --- 6. SMART MAGISK RENDERINGS-FUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
-    parts = re.split(r'\[(?:BILD):\s*([\s\S]+?)\]', text)
-    for i, part in enumerate(parts):
-        if i % 2 == 0:
-            if part.strip():
-                st.markdown(part.strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>"), unsafe_allow_html=True)
-        else:
-            content = part.strip()
-            actual_file = None
-            if os.path.exists(image_dir):
-                for f in os.listdir(image_dir):
-                    if f.lower() == content.lower():
-                        actual_file = os.path.join(image_dir, f)
-                        break
-            if actual_file: st.image(actual_file, use_container_width=True)
-            else:
-                with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
+    
+    # Hittar alla [BILD: x] och [KARTA: x] i texten och bygger in dem snyggt!
+    parts = re.split(r'\[(BILD|KARTA):\s*([^\]]+)\]', text)
+    
+    for i in range(0, len(parts), 3):
+        # Steg 1: Skriv ut den vanliga texten
+        if parts[i].strip():
+            st.markdown(parts[i].strip().replace("HIGHLIGHT:", "<span class='highlight'>").replace(":HIGHLIGHT", "</span>"), unsafe_allow_html=True)
+        
+        # Steg 2: Om det finns en special-tagg direkt efter texten
+        if i + 1 < len(parts):
+            tag_type = parts[i+1]
+            content = parts[i+2].strip()
+            
+            # --- BYGGER BILD ---
+            if tag_type == "BILD":
+                actual_file = None
+                if os.path.exists(image_dir):
+                    for f in os.listdir(image_dir):
+                        if f.lower() == content.lower():
+                            actual_file = os.path.join(image_dir, f)
+                            break
+                if actual_file: st.image(actual_file, use_container_width=True)
+                else:
+                    try:
+                        with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
+                    except: pass
+                    if is_admin: st.sidebar.warning(f"⚠️ Bild saknas: {content}")
+            
+            # --- BYGGER KART-KNAPP ---
+            elif tag_type == "KARTA":
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(content)}"
+                st.markdown(f'''
+                    <a href="{maps_url}" target="_blank" style="text-decoration: none;">
+                        <button style="width: 100%; height: 4rem; background-color: #82e300; color: #0d014d; font-weight: bold; border-radius: 8px; font-size: 1.1rem; border: none; cursor: pointer; margin-top: 15px; margin-bottom: 15px;">
+                            📍 KÖR TILL: {content.upper()}<br>
+                            <span style="font-size: 0.8rem; font-weight: normal;">(Allt material är med i bilen!)</span>
+                        </button>
+                    </a>
+                ''', unsafe_allow_html=True)
 
-# --- 8. AI-MOTOR (GEMINI 2.5 PRO) ---
+# --- 7. AI-MOTOR (GEMINI 2.5 PRO MED MAGISKA KRAFTER) ---
 system_prompt = (
-    "Du är Isolerabs el-mentor. Svara med auktoritet.\n\n"
+    "Du är Isolerabs el-mentor. Svara med auktoritet och en peppande, kollegial ton.\n\n"
+    "HUR DU ANVÄNDER DINA INBYGGDA VERKTYG:\n"
+    "1. NAVIGERING & RUTT: Om användaren anger en adress, frågar efter vägen eller ska åka:\n"
+    "   - Skriv FÖRST en tydlig och kaxig packlista i chatten med allt material som behövs för standardjobbet (Klamring till Aqua Stark IP44 vid healthbox, samt kabel, klammer, plugg, verktyg).\n"
+    "   - Avsluta ditt svar EXAKT med taggen [KARTA: kundens adress] (t.ex. [KARTA: Storgatan 1]). Appen kommer bygga om detta till en stor grön knapp automatiskt!\n\n"
+    "2. FÄRG-HJÄLP (KAMERA): Om användaren ber dig titta på en färg, använda kameran eller säger att de är färgblinda:\n"
+    "   - Svara glatt att du fäller fram kameran och var uppmuntrande. Du MÅSTE inkludera taggen [KAMERA_AKTIVERAD] någonstans i ditt svar (appen döljer texten och slår igång linsen).\n\n"
+    "3. QUIZET: Om användaren vill göra quizet eller testas:\n"
+    "   - Du är nu Quizmaster! Ställ EN (1) fackmässig fråga om el, säkerhet eller material i taget. Ge svarsalternativ. Vänta på att användaren svarar, rätta dem pedagogiskt och gå sen vidare.\n\n"
     "REGLER BILDER:\n"
-    "1. DU SKA VARA VISUELL: Leta alltid efter bilder i manualerna för att illustrera steg.\n"
-    "2. AQUA STARK: Inkludera ALLTID [BILD: aqua_stark_inkoppling.jpg] vid inkoppling av uttag.\n\n"
-    "Standardjobbet är alltid klamring av kabel till ett Aqua Stark-uttag vid en healthbox.\n"
+    "1. Leta ALLTID efter relevanta bilder i manualen.\n"
+    "2. Inkludera ALLTID [BILD: aqua_stark_inkoppling.jpg] vid beskrivning av uttags-inkoppling.\n\n"
     "Manualer:\n{context}"
 )
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
@@ -200,25 +203,72 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=(avatar_user if msg["role"]=="user" else avatar_bot)):
         render_content(msg["content"])
 
-if query := st.chat_input("Fråga el-assistenten..."):
+# --- 8. DOLDA KAMERAN (Träder fram vid [KAMERA_AKTIVERAD]) ---
+if st.session_state.show_camera:
+    st.warning("⚠️ **LIVSVIKTIGT:** Blixt och skuggor kan få mig att se fel färg. Kontrollmät alltid!")
+    cam_photo = st.camera_input("Ta en bild på dosan/kablarna")
+    if cam_photo:
+        with st.spinner("Granskar bilden..."):
+            try:
+                img_b64 = base64.b64encode(cam_photo.getvalue()).decode()
+                img_data = f"data:image/jpeg;base64,{img_b64}"
+                vision_msg = HumanMessage(content=[
+                    {"type": "text", "text": "Du är färg-tolk åt en färgblind elektriker. Beskriv vilka färger kablarna har baserat på deras placering. Var extra noga med rött, grönt och brunt."},
+                    {"type": "image_url", "image_url": {"url": img_data}}
+                ])
+                vision_res = chat_model.invoke([vision_msg])
+                st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för färganalys.*"})
+                st.session_state.messages.append({"role": "assistant", "content": vision_res.content})
+                st.session_state.show_camera = False # Dölj kameran igen
+                st.rerun()
+            except Exception:
+                st.error("Kunde inte tyda bilden. Prova igen!")
+    if st.button("❌ Avbryt kamera", use_container_width=True):
+        st.session_state.show_camera = False
+        st.rerun()
+
+# --- 9. CHATT-INPUT ---
+if query := st.chat_input("Fråga el-assistenten (eller be om en rutt/kamera)..."):
+    if any(ord in query.lower() for ord in ["pierfekt", "tack", "bra jobbat"]): st.balloons()
+
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
         status_box = st.empty()
-        status_box.markdown("*Gräver i manualerna...*")
+        status_box.markdown("*Tänker...*")
         try:
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-            full_res = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta elansvarig!*\n\n"
+            full_res = ""
             message_placeholder = st.empty()
+            
             for chunk in chain.stream({"input": query}):
                 if "answer" in chunk:
                     status_box.empty()
                     full_res += chunk["answer"]
-                    message_placeholder.markdown(full_res, unsafe_allow_html=True)
+                    # Dölj kamerakoden medan texten rinner in så den inte blinkar fult på skärmen
+                    display_text = full_res.replace("[KAMERA_AKTIVERAD]", "")
+                    message_placeholder.markdown(display_text, unsafe_allow_html=True)
+            
             message_placeholder.empty()
+            
+            # --- TRIGGA MAGISKA FUNKTIONER I BAKGRUNDEN ---
+            if "[KAMERA_AKTIVERAD]" in full_res:
+                st.session_state.show_camera = True
+                full_res = full_res.replace("[KAMERA_AKTIVERAD]", "")
+            
+            if "Jag hittar inte detta i manualerna" in full_res:
+                try:
+                    with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
+                except: pass
+            
             render_content(full_res)
             st.session_state.messages.append({"role": "assistant", "content": full_res})
+            
+            # Om kameran slogs på, starta om sidan direkt så linsen öppnas!
+            if st.session_state.show_camera:
+                st.rerun()
+                
         except Exception as e:
             st.error("Tekniskt fel.")
