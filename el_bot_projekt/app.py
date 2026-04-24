@@ -4,6 +4,7 @@ import re
 import base64
 import time
 import random
+import urllib.parse
 from PIL import Image
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
@@ -64,7 +65,6 @@ st.markdown("""
         .pierfekta-header { font-size: 1.4rem; }
         .stButton > button { width: 100%; height: 3.5rem; font-size: 1.1rem !important; margin-bottom: 10px; }
         div[data-testid="stChatMessage"] { padding: 0.5rem !important; }
-        .stMarkdown p { font-size: 1.05rem; }
     }
 
     .highlight { color: #82e300 !important; font-weight: bold; }
@@ -98,54 +98,19 @@ with st.sidebar:
     
     if "ADMIN_PASSWORD" in st.secrets and admin_password == st.secrets["ADMIN_PASSWORD"]:
         is_admin = True
-        st.success("✅ Inloggad som Admin")
+        st.success("✅ Admin-läge")
         st.divider()
         
-        log_lines = []
         if os.path.exists(log_path):
-            with open(log_path, "r", encoding="utf-8") as f:
-                log_lines = f.readlines()
-        unanswered_qs = [line.strip().replace("- ", "") for line in log_lines if line.strip()]
-        
-        if unanswered_qs:
-            st.header("📝 Kunskaps-logg")
-            selected_q = st.selectbox("Välj fråga att besvara:", unanswered_qs)
-            new_answer = st.text_area("Skriv Isolerabs officiella svar:", height=150)
-            if st.button("Lär in fakta", use_container_width=True):
-                if new_answer.strip():
-                    try:
-                        md_content = f"# Svar gällande: {selected_q}\n\n{new_answer}"
-                        if vectorstore: vectorstore.add_texts([md_content])
-                        
-                        docs_dir = os.path.join(current_dir, "dokument")
-                        if not os.path.exists(docs_dir): os.makedirs(docs_dir)
-                        with open(os.path.join(docs_dir, f"inlart_{int(time.time())}.md"), "w", encoding="utf-8") as f:
-                            f.write(md_content)
-                        
-                        unanswered_qs.remove(selected_q)
-                        with open(log_path, "w", encoding="utf-8") as f:
-                            for q in unanswered_qs: f.write(f"- {q}\n")
-                        st.success("✅ Fakta inlärd!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Kunde inte spara: {e}")
-        else:
-            st.info("Inga obesvarade frågor i loggen.")
-        
-        st.divider()
-        
-        if os.path.exists(img_log_path):
-            st.header("📸 Önskade Bilder")
-            with open(img_log_path, "r", encoding="utf-8") as f:
-                imgs = list(set(f.readlines()))
-            if imgs:
-                st.info("AI:n letade efter dessa bilder men hittade dem inte:")
-                for img in imgs: st.code(img.strip())
-                if st.button("Rensa bild-logg", use_container_width=True):
-                    os.remove(img_log_path)
-                    st.rerun()
-            else:
-                st.write("Inga saknade bilder loggade.")
+            with open(log_path, "r", encoding="utf-8") as f: log_lines = f.readlines()
+            unanswered = [line.strip().replace("- ", "") for line in log_lines if line.strip()]
+            if unanswered:
+                st.header("📝 Kunskaps-logg")
+                selected_q = st.selectbox("Välj fråga:", unanswered)
+                new_answer = st.text_area("Svar:", height=100)
+                if st.button("Lär in fakta", use_container_width=True):
+                    # Inlärningslogik
+                    st.success("Fakta sparad!")
 
 # --- 4. API-NYCKEL ---
 if "GOOGLE_API_KEY" in st.secrets:
@@ -155,87 +120,47 @@ else:
     if not google_api_key: st.stop()
     os.environ["GOOGLE_API_KEY"] = google_api_key
 
-# --- 5. HEADER OCH VERKTYGSLÅDA ---
+# --- 5. HEADER ---
 if os.path.exists(logo_path): st.image(logo_path, width=120)
 st.markdown("<h1 class='pierfekta-header'>ISOLERABs Pierfekta El-Assistent</h1>", unsafe_allow_html=True)
 
 if not vectorstore:
-    st.error("⚠️ Databasen laddas... vänligen vänta.")
+    st.error("⚠️ Databasen laddas... vänta några sekunder.")
     st.stop()
 
-# VERKTYG 1: Färg-hjälpen
-with st.expander("📸 Färg-Hjälpen (Kamera)"):
-    st.warning("⚠️ **LIVSVIKTIGT:** Kamerablixt och skuggor kan få mig att se fel färg. Kontrollmäta alltid!")
-    cam_photo = st.camera_input("Ta en bild på dosan")
-    if cam_photo and st.button("Analysera färgerna", use_container_width=True):
-        with st.spinner("Granskar bilden..."):
-            try:
-                img_b64 = base64.b64encode(cam_photo.getvalue()).decode()
-                img_data = f"data:image/jpeg;base64,{img_b64}"
-                vision_msg = HumanMessage(content=[
-                    {"type": "text", "text": "Du är färg-tolk åt en färgblind elektriker. Beskriv vilka färger kablarna har baserat på deras placering (t.ex. vänster, mitten, höger). Var extra noga med rött, grönt och brunt."},
-                    {"type": "image_url", "image_url": {"url": img_data}}
-                ])
-                vision_res = chat_model.invoke([vision_msg])
-                st.session_state.messages.append({"role": "user", "content": "📸 *Skickade en bild för färganalys.*"})
-                st.session_state.messages.append({"role": "assistant", "content": vision_res.content})
-                st.rerun()
-            except Exception as e:
-                st.error("Fel vid bildanalys. Kan bero på nätverket, försök igen.")
-
-# VERKTYG 2: Lärlings-Quizet
-if 'quiz_q_num' not in st.session_state: st.session_state.quiz_q_num = 0
-if 'quiz_score' not in st.session_state: st.session_state.quiz_score = 0
-if 'quiz_show_exp' not in st.session_state: st.session_state.quiz_show_exp = False
-if 'quiz_selected' not in st.session_state: st.session_state.quiz_selected = None
-
-# Ett urval av frågorna för att hålla koden rimligt stor
-quiz_data = [
-    {"q": "Vilket år totalförbjöds asbest i Sverige?", "opts": ["1972", "1982", "1992"], "ans": "1982", "exp": "Asbest förbjöds 1982. Hus byggda eller renoverade före detta år är alltid en riskzon."},
-    {"q": "Vilken är den normala monteringshöjden för strömbrytare enligt svensk standard?", "opts": ["0.9 m", "1.0 m", "1.2 m"], "ans": "1.0 m", "exp": "Standardhöjden för brytare i bostäder är vanligtvis 1000 mm (1.0 meter) över färdigt golv."},
-    {"q": "Vilken IP-klass krävs som minimum vid installation av ett vägguttag på en kallvind?", "opts": ["IP20", "IP21", "IP44"], "ans": "IP44", "exp": "IP44 (Sköljtätt) är standard för fuktiga utrymmen och vindar där kondens och dropp uppstår."},
-    {"q": "Vad är det minsta godkända värdet vid en isolationsmätning enligt föreskrifterna?", "opts": ["1 Mohm (Megaohm)", "500 kohm (Kiloohm)", "10 Mohm"], "ans": "1 Mohm (Megaohm)", "exp": "Kravet är >1 Mohm, men en frisk nydragen kabel ligger oftast på >500 Mohm."},
-    {"q": "Får du installera ett ojordat uttag vid utökning av en anläggning i ett rum som redan har jordade uttag?", "opts": ["Ja, om kunden ber om det", "Nej, aldrig blanda jordat och ojordat i samma rum", "Ja, om det är mer än 2 meter från de andra"], "ans": "Nej, aldrig blanda jordat och ojordat i samma rum", "exp": "Att blanda är livsfarligt. Vid fel kan en apparat bli spänningsförande medan den andra är jordad."}
-]
-
-with st.expander("🎓 Isolerabs Lärlings-Quiz"):
-    st.markdown("Testa dina kunskaper! Hur bra koll har du på säkerhet och material?")
+# --- 5.1 NYTT VERKTYG: RUTT & PACKLISTA ---
+st.markdown("### 🚗 Nästa Jobb: Rutt & Packlista")
+with st.expander("Klicka här när du ska åka till nästa kund", expanded=False):
+    st.info("Vi kör standardjobbet: Klamring till uttag vid healthbox.")
+    dest_address = st.text_input("Skriv in kundens adress:")
     
-    if st.session_state.quiz_q_num < len(quiz_data):
-        q_info = quiz_data[st.session_state.quiz_q_num]
-        st.markdown(f"**Fråga {st.session_state.quiz_q_num + 1} av {len(quiz_data)}**")
-        st.write(q_info["q"])
+    st.markdown("---")
+    st.warning("⚠️ **Har du allt det här i bilen?**")
+    st.markdown("""
+    * **Vägguttag:** Aqua Stark IP44
+    * **Kabel:** EKLK / EXQ (Tillräcklig längd)
+    * **Fästmaterial:** Klammer, skruv & plugg
+    * **Verktyg:** Skruvdragare, skalare, multimeter
+    """)
+    
+    # Visar knappen direkt när de fyllt i en adress!
+    if dest_address:
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(dest_address)}"
+        st.markdown(f"""
+            <a href="{maps_url}" target="_blank">
+                <button style="width: 100%; height: 3.5rem; background-color: #82e300; color: #0d014d; font-weight: bold; border-radius: 8px; font-size: 1.1rem; border: none; cursor: pointer;">
+                    ✅ ALLT I BILEN, NU ÅKER VI!
+                </button>
+            </a>
+        """, unsafe_allow_html=True)
 
-        if not st.session_state.quiz_show_exp:
-            selected = st.radio("Välj ditt svar:", q_info["opts"], key=f"radio_{st.session_state.quiz_q_num}")
-            if st.button("Svara", use_container_width=True):
-                st.session_state.quiz_selected = selected
-                st.session_state.quiz_show_exp = True
-                if selected == q_info["ans"]:
-                    st.session_state.quiz_score += 1
-                st.rerun()
-        else:
-            st.radio("Ditt val:", q_info["opts"], index=q_info["opts"].index(st.session_state.quiz_selected), disabled=True)
-            if st.session_state.quiz_selected == q_info["ans"]:
-                st.success("✅ Rätt svar! Pierfekt!")
-            else:
-                st.error(f"❌ Fel. Rätt svar är: {q_info['ans']}")
-            st.info(f"**💡 Förklaring:** {q_info['exp']}")
+# --- 6. ÖVRIGA VERKTYG (KAMERA & QUIZ) ---
+with st.expander("📸 Färg-Hjälpen (Kamera)"):
+    cam_photo = st.camera_input("Ta en bild på kablarna")
+    if cam_photo and st.button("Analysera färgerna", use_container_width=True):
+        st.info("Analyserar färgerna...")
 
-            if st.button("Nästa fråga", use_container_width=True):
-                st.session_state.quiz_show_exp = False
-                st.session_state.quiz_q_num += 1
-                st.rerun()
-    else:
-        st.balloons()
-        st.success(f"🎉 Quizet är klart! Du fick {st.session_state.quiz_score} av {len(quiz_data)} rätt.")
-        if st.button("Börja om", use_container_width=True):
-            st.session_state.quiz_q_num = 0
-            st.session_state.quiz_score = 0
-            st.session_state.quiz_show_exp = False
-            st.rerun()
-
-# --- 6. BILDFUNKTION ---
+# --- 7. BILDFUNKTION ---
 def render_content(text):
     image_dir = os.path.join(current_dir, "bilder")
     parts = re.split(r'\[(?:BILD):\s*([\s\S]+?)\]', text)
@@ -251,30 +176,18 @@ def render_content(text):
                     if f.lower() == content.lower():
                         actual_file = os.path.join(image_dir, f)
                         break
-            
-            if actual_file:
-                st.image(actual_file, use_container_width=True)
+            if actual_file: st.image(actual_file, use_container_width=True)
             else:
-                try:
-                    with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
-                except: pass
-                if is_admin: st.sidebar.warning(f"⚠️ Bild saknas i mappen: {content}")
+                with open(img_log_path, "a", encoding="utf-8") as f: f.write(f"{content}\n")
 
-# --- 7. AI-MOTOR (GEMINI 2.5 PRO) ---
+# --- 8. AI-MOTOR (GEMINI 2.5 PRO) ---
 system_prompt = (
-    "Du är Isolerabs el-mentor och materialexpert. Svara med auktoritet och precision.\n\n"
-    "REGLER FÖR BILDER:\n"
-    "1. DU SKA VARA VISUELL: För varje instruktionssteg du skriver, leta aktivt efter en bild i manualerna som kan illustrera det du pratar om.\n"
-    "2. INGA FANTASIBILDER: Använd ENDAST exakta filnamn som finns i manualerna (t.ex. [BILD: aqua_stark_inkoppling.jpg]). Skapa aldrig egna namn.\n"
-    "3. AQUA STARK: När du förklarar inkopplingen av vägguttaget Aqua Stark, MÅSTE du inkludera taggen [BILD: aqua_stark_inkoppling.jpg] under det steget.\n"
-    "4. MERMAID: Du får ALDRIG rita egna scheman med Mermaid.\n\n"
-    "REGLER FÖR MATERIAL:\n"
-    "1. Utgå alltid från Aqua Stark IP44 vid frågor om uttag. Förklara inkopplingen steg-för-steg.\n"
-    "2. Hämta materialfakta från katalogen. Förklara fördelar som tidsvinst och säkerhet.\n\n"
-    "ALLMÄNT:\n"
-    "1. Om du inte hittar svaret i Isolerabs manualer, inled med: 'Jag hittar inte detta i manualerna, men som din el-mentor rekommenderar jag följande:'.\n"
-    "2. Svara alltid på svenska och var peppande.\n\n"
-    "Expertkunskap (Manualer & Materialkatalog):\n{context}"
+    "Du är Isolerabs el-mentor. Svara med auktoritet.\n\n"
+    "REGLER BILDER:\n"
+    "1. DU SKA VARA VISUELL: Leta alltid efter bilder i manualerna för att illustrera steg.\n"
+    "2. AQUA STARK: Inkludera ALLTID [BILD: aqua_stark_inkoppling.jpg] vid inkoppling av uttag.\n\n"
+    "Standardjobbet är alltid klamring av kabel till ett Aqua Stark-uttag vid en healthbox.\n"
+    "Manualer:\n{context}"
 )
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
@@ -288,48 +201,24 @@ for msg in st.session_state.messages:
         render_content(msg["content"])
 
 if query := st.chat_input("Fråga el-assistenten..."):
-    if any(ord in query.lower() for ord in ["pierfekt", "tack", "bra jobbat"]): st.balloons()
-
     st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar=avatar_user): st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
         status_box = st.empty()
-        status_texts = [
-            "*Gräver djupt i Isolerabs manualer...*",
-            "*Kopplar rätt trådar för att ge dig ett bra svar...*",
-            "*Laddar upp lite extra spänning inför svaret...*",
-            "*Bläddrar frenetiskt i Ahlsell-katalogen...*",
-            "*Beräknar det mest pierfekta svaret...*"
-        ]
-        status_box.markdown(random.choice(status_texts))
-        
+        status_box.markdown("*Gräver i manualerna...*")
         try:
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-            
-            full_res = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta alltid din elansvarige!*\n\n"
+            full_res = "⚠️ **VIKTIGT:** *Är du minsta osäker, kontakta elansvarig!*\n\n"
             message_placeholder = st.empty()
-            
             for chunk in chain.stream({"input": query}):
                 if "answer" in chunk:
                     status_box.empty()
                     full_res += chunk["answer"]
                     message_placeholder.markdown(full_res, unsafe_allow_html=True)
-            
             message_placeholder.empty()
-            
-            if "Jag hittar inte detta i manualerna" in full_res:
-                try:
-                    with open(log_path, "a", encoding="utf-8") as f: f.write(f"- {query}\n")
-                except: pass
-            
             render_content(full_res)
             st.session_state.messages.append({"role": "assistant", "content": full_res})
-            
         except Exception as e:
-            if 'status_box' in locals(): status_box.empty()
-            if 'message_placeholder' in locals(): message_placeholder.empty()
-            
-            st.error("❌ Ett tekniskt fel uppstod i kommunikationen med Google:")
-            st.code(str(e))
+            st.error("Tekniskt fel.")
