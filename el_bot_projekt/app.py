@@ -90,9 +90,9 @@ def get_google_sheet(sheet_name):
             creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
             client = gspread.authorize(creds)
             return client.open("El-Assistenten Logg").worksheet(sheet_name)
-    except Exception as e:
+except Exception as e:
+        st.error(f"System-felmeddelande: {e}")
         return None
-    return None
 
 # --- 3. GLOBAL INLOGGNINGSSKÄRM (DÖRRVAKTEN MED ANSÖKAN) ---
 if not st.session_state.logged_in:
