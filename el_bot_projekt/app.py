@@ -80,7 +80,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- HJÄLPFUNKTION: KOPPLING TILL GOOGLE SHEETS ---
-@st.cache_resource(show_spinner=False, ttl=60) # Cachar kopplingen i 60 sekunder för snabbhet
+@st.cache_resource(show_spinner=False, ttl=60)
 def get_google_sheet(sheet_name):
     try:
         if "gcp_service_account" in st.secrets:
@@ -90,9 +90,10 @@ def get_google_sheet(sheet_name):
             creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
             client = gspread.authorize(creds)
             return client.open("El-Assistenten Logg").worksheet(sheet_name)
-except Exception as e:
+    except Exception as e:
         st.error(f"System-felmeddelande: {e}")
         return None
+    return None
 
 # --- 3. GLOBAL INLOGGNINGSSKÄRM (DÖRRVAKTEN MED ANSÖKAN) ---
 if not st.session_state.logged_in:
