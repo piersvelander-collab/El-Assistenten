@@ -413,4 +413,4 @@ if query := st.chat_input("Fråga el-assistenten (eller be om en rutt/kamera)...
                 st.rerun()
                 
         except Exception as e:
-            st.error("Tekniskt fel i kommunikationen.")
+            st.error(f"System-fel: {e}")
