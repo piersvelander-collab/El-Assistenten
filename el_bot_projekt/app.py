@@ -321,8 +321,10 @@ def render_content(text):
                 ''', unsafe_allow_html=True)
 
 # --- 8. AI-MOTOR (GEMINI 2.5 PRO) ---
+user_name = st.session_state.current_user if st.session_state.current_user else "Montör"
+
 system_prompt = (
-    f"Du är Isolerabs el-mentor. Svara med auktoritet och en peppande, kollegial ton till {st.session_state.current_user}.\n\n"
+    "Du är Isolerabs el-mentor. Svara med auktoritet och en peppande, kollegial ton till " + user_name + ".\n\n"
     "HUR DU ANVÄNDER DINA INBYGGDA VERKTYG:\n"
     "1. NAVIGERING & RUTT: Om användaren anger en adress, frågar efter vägen eller ska åka:\n"
     "   - Skriv FÖRST en tydlig packlista i chatten med allt material som behövs för standardjobbet (Klamring till Aqua Stark IP44 vid healthbox, kabel, klammer, plugg, verktyg).\n"
@@ -334,7 +336,7 @@ system_prompt = (
     "REGLER BILDER:\n"
     "1. Leta ALLTID efter relevanta bilder i manualen.\n"
     "2. Inkludera ALLTID [BILD: aqua_stark_inkoppling.jpg] vid beskrivning av uttags-inkoppling.\n\n"
-    "Manualer:\n{{context}}"
+    "Manualer:\n{context}"
 )
 prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("human", "{input}")])
 
@@ -346,7 +348,7 @@ if "messages" not in st.session_state: st.session_state.messages = []
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=(avatar_user if msg["role"]=="user" else avatar_bot)):
         render_content(msg["content"])
-
+        
 # --- 9. DOLDA KAMERAN ---
 if st.session_state.show_camera:
     st.warning("⚠️ **LIVSVIKTIGT:** Blixt och skuggor kan ge fel färg på skärmen. Kontrollmät alltid!")
