@@ -386,7 +386,10 @@ if query := st.chat_input("Fråga el-assistenten (eller be om en rutt/kamera)...
         try:
             retriever = vectorstore.as_retriever(search_kwargs={"k": 15})
             chain = create_retrieval_chain(retriever, create_stuff_documents_chain(chat_model, prompt))
-            full_res = ""
+            
+            # HÄR ÄR DEN NYA UPPDATERADE VARNINGEN
+            full_res = "⚠️ **VIKTIGT:** *Jag är en AI-bot som gör mitt bästa för att svara rätt, men du får ALDRIG utföra arbete utifrån mina instruktioner om du är osäker. Vid minsta tvekan ska elansvarig kontaktas!*\n\n"
+            
             message_placeholder = st.empty()
             
             for chunk in chain.stream({"input": query}):
