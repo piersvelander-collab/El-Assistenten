@@ -1,0 +1,9 @@
+# Python och virtuella miljöer
+.venv/
+__pycache__/
+*.pyc
+
+# Hemligheter och API-nycklar
+.env
+.streamlit/secrets.toml
+secrets.toml
