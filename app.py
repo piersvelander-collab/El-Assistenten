@@ -24,8 +24,11 @@ from langchain_core.messages import HumanMessage, AIMessage
 # 2. SÖKVÄGAR OCH SYSTEMKONFIGURATION
 # ==========================================
 # 🛑 SERVICEBRYTARE FÖR UTVECKLARE 🛑
-# Ändra till False innan appen publiceras för montörerna!
-DEV_MODE = True 
+# Känner av om vi är i molnet (PROD) eller lokalt på datorn
+if "MILJO" in st.secrets and st.secrets["MILJO"] == "PROD":
+    DEV_MODE = False  # Dölj källor för montörerna på nätet
+else:
+    DEV_MODE = True   # Visa källor när Pier testar på sin dator
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(CURRENT_DIR, "faiss_index")
