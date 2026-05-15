@@ -284,25 +284,25 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                 retrieval_chain = create_retrieval_chain(retriever, document_chain)
                 
                 # Streama svaret och fånga upp källorna
+# 1. Streama svaret och dölj taggarna medan texten rullas ut
                 for chunk in retrieval_chain.stream({"input": query, "chat_history": chat_history}):
                     if "context" in chunk:
-                        retrieved_docs = chunk["context"] # Spara källdokumenten
+                        retrieved_docs = chunk["context"]
                         
                     if "answer" in chunk:
                         full_res += chunk["answer"]
                         display_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                        # Dölj taggarna medan texten rullas ut
                         placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", ""))
                 
+                # 2. Sudda ut den tillfälliga rutan
                 placeholder.empty()
-                final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                # Skapa ett helt rent svar utan taggar
-                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "")
-                render_content(clean_final_res)
                 
-                placeholder.empty()
+                # 3. Skapa en originalversion (för loggen) och en städad version (för skärmen)
                 final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                render_content(final_res.replace("[KAMERA_AKTIVERAD]", ""))
+                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "")
+                
+                # 4. SKRIV UT PÅ SKÄRMEN (En enda gång!)
+                render_content(clean_final_res)
                 
                 # --- INSPEKTIONSLUCKA FÖR UTVECKLARE ---
                 if DEV_MODE and retrieved_docs:
