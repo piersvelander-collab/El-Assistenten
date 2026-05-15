@@ -158,7 +158,12 @@ if not st.session_state.logged_in:
     st.markdown(f'<img src="{LOGO_URL}" class="main-logo" style="width:250px; margin-bottom: 20px;">', unsafe_allow_html=True)
     st.markdown("<h1 class='pierfekta-header'>Välkommen till Isoela</h1>", unsafe_allow_html=True)
     
-    st.warning("⚠️ **VIKTIG SÄKERHETSINFORMATION**\nIsoela är ett AI-verktyg för vägledning utifrån Isolerabs egenkontrollprogram. Hon ersätter aldrig mänskligt omdöme. Vid osäkerhet ska ALLTID elansvarig kontaktas.")
+ st.warning(
+        "⚠️ **VIKTIG SÄKERHETSINFORMATION**\n\n"
+        "Isoela är ett AI-verktyg för vägledning utifrån Isolerabs egenkontrollprogram. "
+        "Hon ersätter aldrig ditt eget mänskliga omdöme och sunda förnuft. Vid minsta osäkerhet ska ALLTID elansvarig kontaktas.\n\n"
+        "**Genom att logga in intygar du att du förstår detta och att du personligen bär det fulla ansvaret för det fackmässiga utförandet av ditt arbete.**"
+    )
     
     with st.form("login_form"):
         u = st.text_input("Användarnamn:", autocomplete="username")
