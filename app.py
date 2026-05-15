@@ -39,7 +39,7 @@ USER_AVATAR_PATH = os.path.join(CURRENT_DIR, "Pier animerad Isolerab.jpg")
 BOT_AVATAR_PATH = os.path.join(CURRENT_DIR, "isoela_avatar.jpg") # Din framtida AI-kvinna
 
 st.set_page_config(
-    page_title="Isoela – Isolerabs El-Mentor", 
+    page_title="Isoela – Din El-Mentor", 
     page_icon="⚡", 
     layout="centered",
     initial_sidebar_state="collapsed"
