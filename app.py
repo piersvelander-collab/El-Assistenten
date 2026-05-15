@@ -223,7 +223,7 @@ with st.sidebar:
 # 9. HUVUDGRÄNSSNITT OCH SYSTEMPROMPT
 # ==========================================
 st.markdown(f'<img src="{LOGO_URL}" class="main-logo" style="width:250px; margin-bottom: 10px;">', unsafe_allow_html=True)
-st.markdown("<h1 class='pierfekta-header'>Isoela – Isolerabs El-Mentor</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='pierfekta-header'>Isoela – Din El-Mentor</h1>", unsafe_allow_html=True)
 
 try:
     avatar_user = Image.open(USER_AVATAR_PATH)
