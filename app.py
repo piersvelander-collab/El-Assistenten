@@ -291,7 +291,14 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                     if "answer" in chunk:
                         full_res += chunk["answer"]
                         display_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                        placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", ""))
+                        # Dölj taggarna medan texten rullas ut
+                        placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", ""))
+                
+                placeholder.empty()
+                final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
+                # Skapa ett helt rent svar utan taggar
+                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "")
+                render_content(clean_final_res)
                 
                 placeholder.empty()
                 final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
@@ -310,13 +317,15 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                 
                 st.session_state.messages.append({"role": "assistant", "content": final_res})
 
+# Spara det rena svaret i chatthistoriken så användaren inte ser taggen
+                st.session_state.messages.append({"role": "assistant", "content": clean_final_res})
+                
                 # --- SMART LOGGNING TILL SHEETS ---
-                # Lista på fraser Isoela använder när hon inte hittar svaret
                 osakra_svar = ["jag vet inte", "informationen saknas", "hittar inte", "finns inte i", "tyvärr", "kontakta elansvarig"]
                 
-                # Om någon av fraserna finns i hennes svar, skicka frågan till Sheets
-                if any(fras in final_res.lower() for fras in osakra_svar):
-                    log_to_gsheets(f"KUNDE INTE SVARA PÅ: {query}")
+                # Om vår hemliga tagg finns i det ursprungliga svaret, ELLER om hon säger att hon inte vet
+                if "[INFO_SAKNAS]" in final_res or any(fras in clean_final_res.lower() for fras in osakra_svar):
+                    log_to_gsheets(f"SAKNADE INFO (eller fick irrelevant fråga): {query}")
                 # ----------------------------------                
                 if "[KAMERA_AKTIVERAD]" in final_res:
                     st.session_state.show_camera = True
