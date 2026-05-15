@@ -143,8 +143,10 @@ def render_content(text):
                 if os.path.exists(f_path): 
                     st.image(f_path, use_container_width=True)
                 else:
-                    # TYST LARM: Visas inte i appen, skickas bara till Sheets
+                    # Larm till Sheets (tyst för montören)
                     log_to_gsheets(f"SAKNAD BILD: Isoela ville visa '{content}' men filen saknas.")
+                    # Det fyndiga svaret i chatten
+                    st.info("Jag har tyvärr ingen bild på detta just nu, men jag ska genast ge Elansvariga Pier i uppgift att fixa fram en Pierfekt bild!")
                     
             elif tag == "KARTA":
                 url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(content)}"
@@ -288,55 +290,44 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                 document_chain = create_stuff_documents_chain(chat_model, prompt)
                 retrieval_chain = create_retrieval_chain(retriever, document_chain)
                 
-                # Streama svaret och fånga upp källorna
-# 1. Streama svaret och dölj taggarna medan texten rullas ut
+                # 1. Streama svaret
                 for chunk in retrieval_chain.stream({"input": query, "chat_history": chat_history}):
                     if "context" in chunk:
-                        retrieved_docs = chunk["context"]
+                        retrieved_docs = chunk["context"] 
                         
                     if "answer" in chunk:
                         full_res += chunk["answer"]
                         display_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
                         placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", ""))
                 
-                # 2. Sudda ut den tillfälliga rutan
+                # 2. Rensa rutan
                 placeholder.empty()
                 
-                # 3. Skapa en originalversion (för loggen) och en städad version (för skärmen)
+                # 3. Skapa städad text
                 final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
                 clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "")
                 
-                # 4. SKRIV UT PÅ SKÄRMEN (En enda gång!)
+                # 4. SKRIV UT EN GÅNG
                 render_content(clean_final_res)
                 
-                # --- INSPEKTIONSLUCKA FÖR UTVECKLARE ---
+                # 5. Inspektionsluckan
                 if DEV_MODE and retrieved_docs:
                     with st.expander("🔍 DEV MODE: Se Isoelas Källor"):
                         st.write("Här är textstyckena Isoela använde för att bygga sitt svar:")
                         for idx, doc in enumerate(retrieved_docs):
                             source = doc.metadata.get("source", "Okänd fil")
                             st.markdown(f"**Dokument {idx+1}:** `{source}`")
-                            # Visar de första 200 tecknen från just det stycket hon läste
                             st.caption(f"_{doc.page_content[:200]}..._")
                             st.divider()
                 
-                st.session_state.messages.append({"role": "assistant", "content": final_res})
-
-# Spara det rena svaret i chatthistoriken så användaren inte ser taggen
+                # 6. SPARA I HISTORIKEN (Viktigt att bara spara den städade versionen!)
                 st.session_state.messages.append({"role": "assistant", "content": clean_final_res})
                 
-                # --- SMART LOGGNING TILL SHEETS ---
+                # 7. Logga smart till Sheets
                 osakra_svar = ["jag vet inte", "informationen saknas", "hittar inte", "finns inte i", "tyvärr", "kontakta elansvarig"]
-                
-                # Om vår hemliga tagg finns i det ursprungliga svaret, ELLER om hon säger att hon inte vet
                 if "[INFO_SAKNAS]" in final_res or any(fras in clean_final_res.lower() for fras in osakra_svar):
-                    log_to_gsheets(f"SAKNADE INFO (eller fick irrelevant fråga): {query}")
-                # ----------------------------------                
-                if "[KAMERA_AKTIVERAD]" in final_res:
-                    st.session_state.show_camera = True
-                    time.sleep(1)
-                    st.rerun()
-                    
+                    log_to_gsheets(f"SAKNADE INFO (eller irrelevant fråga): {query}")
+                
             except Exception as e:
                 felmeddelande = f"Ojdå, det blev en kortslutning i Isoelas hjärna. Felkod: {e}"
                 st.error(felmeddelande)
