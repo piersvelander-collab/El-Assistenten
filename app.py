@@ -143,7 +143,8 @@ def render_content(text):
                 if os.path.exists(f_path): 
                     st.image(f_path, use_container_width=True)
                 else:
-                    st.warning(f"⚠️ Isoela försökte visa bilden '{content}', men filen saknas i mappen 'bilder/'.")
+                    # TYST LARM: Visas inte i appen, skickas bara till Sheets
+                    log_to_gsheets(f"SAKNAD BILD: Isoela ville visa '{content}' men filen saknas.")
                     
             elif tag == "KARTA":
                 url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(content)}"
@@ -174,7 +175,7 @@ if not st.session_state.logged_in:
                         if str(row.get("Status", "")).lower() == "godkänd":
                             st.session_state.logged_in = True
                             st.session_state.current_user = u.capitalize()
-                            log_to_gsheets("Inloggning lyckades")
+                           # log_to_gsheets("Inloggning lyckades")
                             st.rerun()
                         else:
                             st.error("Ditt konto är inaktivt. Kontakta admin.")
@@ -210,7 +211,7 @@ with st.sidebar:
         
     if st.button("🚪 Logga ut", use_container_width=True):
         st.session_state.logged_in = False
-        log_to_gsheets("Loggade ut")
+        # log_to_gsheets("Loggade ut")
         st.rerun()
 
 # ==========================================
@@ -307,8 +308,15 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                             st.divider()
                 
                 st.session_state.messages.append({"role": "assistant", "content": final_res})
-                log_to_gsheets(f"Fråga: {query}")
+
+                # --- SMART LOGGNING TILL SHEETS ---
+                # Lista på fraser Isoela använder när hon inte hittar svaret
+                osakra_svar = ["jag vet inte", "informationen saknas", "hittar inte", "finns inte i", "tyvärr", "kontakta elansvarig"]
                 
+                # Om någon av fraserna finns i hennes svar, skicka frågan till Sheets
+                if any(fras in final_res.lower() for fras in osakra_svar):
+                    log_to_gsheets(f"KUNDE INTE SVARA PÅ: {query}")
+                # ----------------------------------                
                 if "[KAMERA_AKTIVERAD]" in final_res:
                     st.session_state.show_camera = True
                     time.sleep(1)
