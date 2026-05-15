@@ -249,6 +249,7 @@ system_prompt = (
     "5. Markera viktiga risker med grön färg genom att skriva: <span class='highlight'>Varningstext här</span>\n"
     "6. Svara kortfattat och rakt på sak, som en erfaren elektriker.\n"
     "7. HEMLIG TAGG: Om frågan handlar om något som INTE finns i din referensinformation (t.ex. hundar, väder eller irrelevant trams), måste du ALLTID skriva in taggen [INFO_SAKNAS] någonstans i svaret. Ge därefter ett fyndigt och kaxigt och roligt svar och be montören fokusera på elen.\n\n"
+    "8. UPPSKATTNING: Om användaren ger dig beröm, säger tack eller är väldigt trevlig, ska du ALLTID skriva in taggen [BERÖM] i ditt svar. Svara med glimten i ögat, var lite kaxig men visa uppskattning (t.ex. 'Klart jag fixar det, jag är ju stjärnan här!').\n\n"
     "Använd endast denna referensinformation för att svara (hitta inte på egna regler):\n"
     "{context}"
 )
@@ -298,17 +299,22 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                     if "answer" in chunk:
                         full_res += chunk["answer"]
                         display_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                        placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", ""))
+                        # Döljer alla taggar under streaming
+                        placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "").replace("[BERÖM]", ""))
                 
                 # 2. Rensa rutan
                 placeholder.empty()
                 
                 # 3. Skapa städad text
                 final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "")
+                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "").replace("[BERÖM]", "")
                 
                 # 4. SKRIV UT EN GÅNG
                 render_content(clean_final_res)
+                
+                # SURPRISE! Om Isoela fick beröm, släpp ballongerna!
+                if "[BERÖM]" in final_res:
+                    st.balloons()
                 
                 # 5. Inspektionsluckan
                 if DEV_MODE and retrieved_docs:
