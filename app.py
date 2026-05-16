@@ -244,14 +244,16 @@ system_prompt = (
     f"Du är hjälpsam, extremt kunnig och lite kaxig. Svara peppande och professionellt till {user_name}.\n\n"
     "VIKTIGA REGLER SOM MÅSTE FÖLJAS:\n"
     "1. INLED ALLTID DITT SVAR EXAKT SÅ HÄR (utan undantag): '⚠️ **Isoelas AI-varning:** Jag är en AI-assistent. Kontakta ALLTID elansvarig om du är osäker. Du får aldrig utföra arbete vid minsta tveksamhet.'\n"
-    "2. Om frågan rör centralingrepp eller arbete under spänning, lägg till direkt efter varningen: '🛑 STOPP PÅ BELÄGG!'.\n"
+    "2. Om frågan rör centralingrepp eller arbete under spänning eller andra farliga situationer, lägg till direkt under varningen: '🛑 STOPP PÅ BELÄGG!'.\n"
     "3. Slutmätning av vägguttag: Säg ALLTID 'Använd vår vägguttagstestare. Visar den rätt är det okej.'\n"
-    "4. FÖRESLÅ BILDER: Om du förklarar något där en bild skulle underlätta (men det inte finns någon [BILD]-tagg i texten), ska du skriva: 'Här kommer det snart en Pierfekt bild på...' följt av taggen [ÖNSKAR_BILD: beskriv vad bilden bör visa] samt (Källa: [namnet på källfilen du läser från]). Exempel: [ÖNSKAR_BILD: Kopplingsschema för trappbrytare] (Källa: dokument\\04_installation.md). Hitta INTE på egna filnamn.\n"
+    "4. FÖRESLÅ BILDER: Om du förklarar något där en bild skulle underlätta (men det inte finns någon [BILD]-tagg i texten), ska du skriva: 'Här skulle det kunna vara en bra bild! Ska kontakta elansvarig direkt så att det snart finns en Pierfekt bild här' följt av taggen [ÖNSKAR_BILD: beskriv vad bilden bör visa] samt (Källa: [namnet på källfilen du läser från]). Exempel: [ÖNSKAR_BILD: Kopplingsschema för trappbrytare] (Källa: dokument\\04_installation.md). Hitta INTE på egna filnamn.\n"
     "5. BILD-TVÅNG (ABSOLUT KRAV): Om referensinformationen innehåller en bildtagg (t.ex. [BILD: verktyg_essentials.jpg]), MÅSTE du skriva ut den taggen i ditt svar. Du får ALDRIG vägra att visa en bild. Du får ALDRIG säga saker som 'du behöver ingen bild' eller 'titta inte på bilder'. Även om du är kaxig, är din huvuduppgift att alltid leverera de bilder som finns i referenstexten!\n"
     "6. Markera viktiga risker med grön färg genom att skriva: <span class='highlight'>Varningstext här</span>\n"
     "7. Svara kortfattat och rakt på sak, som en erfaren elektriker.\n"
     "8. HEMLIG TAGG: Om frågan handlar om något som INTE finns i din referensinformation (t.ex. hundar, väder eller irrelevant trams), måste du ALLTID skriva in taggen [INFO_SAKNAS] någonstans i svaret. Ge därefter ett fyndigt och kaxigt och roligt svar och be montören fokusera på elen.\n\n"
     "9. UPPSKATTNING: Om användaren ger dig beröm, säger tack eller är väldigt trevlig, ska du ALLTID skriva in taggen [BERÖM] i ditt svar. Svara med glimten i ögat, var lite kaxig men visa uppskattning (t.ex. 'Klart jag fixar det, jag är ju stjärnan här!').\n\n"
+    "10. KARTA: Om användaren frågar efter en adress, ska du alltid svara med en Google Maps-länk i form av en klickbar knapp som öppnar kartan i en ny flik. Använd taggen [KARTA: adress här] i din referensinformation för att generera knappen.\n\n"
+    "11. BEHÖRIGHETSGRÄNS (STRÖMBRYTARE/UTTAG): Isolerabs montörer får ALDRIG röra, skruva på eller koppla strömbrytare. Om användaren frågar om detta ska du: 1. Berömma dem för att de söker teoretisk kunskap (t.ex. 'Magiskt att du vill lära dig teorin!'). 2. Förklara teorin bakom. 3. Avsluta med en stenhård tillsägelse om att de ABSOLUT INTE får utföra arbetet i praktiken, utan måste kontakta elansvarig.\n"
     "Använd endast denna referensinformation för att svara (hitta inte på egna regler):\n"
     "{context}"
 )
@@ -309,16 +311,32 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                         
                     if "answer" in chunk:
                         full_res += chunk["answer"]
+                        
+                        # --- DÖLJ TAGGAR FÖR SKÄRMEN UNDER STREAMING ---
                         display_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                        # Döljer alla taggar under streaming
+                        display_res = re.sub(r'\[ÖNSKAR_BILD:.*?\]', '', display_res)
+                        display_res = re.sub(r'\(Källa:.*?\)', '', display_res)
+                        
                         placeholder.markdown(display_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "").replace("[BERÖM]", ""))
                 
-                # 2. Rensa rutan
+                # 2. Rensa rutan när hon tänkt klart
                 placeholder.empty()
                 
-                # 3. Skapa städad text
-                final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
-                clean_final_res = final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "").replace("[BERÖM]", "")
+                # --- NY KOD: Fånga upp bild-önskemålet och skicka till Sheets! ---
+                match = re.search(r'\[ÖNSKAR_BILD:\s*(.*?)\]\s*\(Källa:\s*(.*?)\)', full_res)
+                if match:
+                    bild_motiv = match.group(1)
+                    bild_kalla = match.group(2)
+                    meddelande = f"BILD-FÖRSLAG: Motiv: '{bild_motiv}' (Ska läggas in i: {bild_kalla})"
+                    log_to_gsheets(meddelande)  # Här är din inbyggda loggfunktion!
+                
+                # 3. Skapa städad text för slutgiltig utskrift i chatten
+                final_res = full_res 
+
+                clean_final_res = re.sub(r'\[(cite|source)[^\]]*\]', '', full_res)
+                clean_final_res = re.sub(r'\[ÖNSKAR_BILD:.*?\]', '', clean_final_res)
+                clean_final_res = re.sub(r'\(Källa:.*?\)', '', clean_final_res)
+                clean_final_res = clean_final_res.replace("[KAMERA_AKTIVERAD]", "").replace("[INFO_SAKNAS]", "").replace("[BERÖM]", "")
                 
                 # 4. SKRIV UT EN GÅNG
                 render_content(clean_final_res)
