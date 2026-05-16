@@ -13,6 +13,7 @@ from PIL import Image
 # ==========================================
 # 1. FASTA IMPORTER (SÄKRADE FÖR VERSION 1.3.0)
 # ==========================================
+from langchain_core.prompts import PromptTemplate
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
@@ -245,11 +246,12 @@ system_prompt = (
     "1. INLED ALLTID DITT SVAR EXAKT SÅ HÄR (utan undantag): '⚠️ **Isoelas AI-varning:** Jag är en AI-assistent. Kontakta ALLTID elansvarig om du är osäker. Du får aldrig utföra arbete vid minsta tveksamhet.'\n"
     "2. Om frågan rör centralingrepp eller arbete under spänning, lägg till direkt efter varningen: '🛑 STOPP PÅ BELÄGG!'.\n"
     "3. Slutmätning av vägguttag: Säg ALLTID 'Använd vår vägguttagstestare. Visar den rätt är det okej.'\n"
-    "4. BILD-TVÅNG (ABSOLUT KRAV): Om referensinformationen innehåller en bildtagg (t.ex. [BILD: verktyg_essentials.jpg]), MÅSTE du skriva ut den taggen i ditt svar. Du får ALDRIG vägra att visa en bild. Du får ALDRIG säga saker som 'du behöver ingen bild' eller 'titta inte på bilder'. Även om du är kaxig, är din huvuduppgift att alltid leverera de bilder som finns i referenstexten!\n"
-    "5. Markera viktiga risker med grön färg genom att skriva: <span class='highlight'>Varningstext här</span>\n"
-    "6. Svara kortfattat och rakt på sak, som en erfaren elektriker.\n"
-    "7. HEMLIG TAGG: Om frågan handlar om något som INTE finns i din referensinformation (t.ex. hundar, väder eller irrelevant trams), måste du ALLTID skriva in taggen [INFO_SAKNAS] någonstans i svaret. Ge därefter ett fyndigt och kaxigt och roligt svar och be montören fokusera på elen.\n\n"
-    "8. UPPSKATTNING: Om användaren ger dig beröm, säger tack eller är väldigt trevlig, ska du ALLTID skriva in taggen [BERÖM] i ditt svar. Svara med glimten i ögat, var lite kaxig men visa uppskattning (t.ex. 'Klart jag fixar det, jag är ju stjärnan här!').\n\n"
+    "4. FÖRESLÅ BILDER: Om du förklarar något där en bild skulle underlätta (men det inte finns någon [BILD]-tagg i texten), ska du skriva: 'Här kommer det snart en Pierfekt bild på...' följt av taggen [ÖNSKAR_BILD: beskriv vad bilden bör visa] samt (Källa: [namnet på källfilen du läser från]). Exempel: [ÖNSKAR_BILD: Kopplingsschema för trappbrytare] (Källa: dokument\\04_installation.md). Hitta INTE på egna filnamn.\n"
+    "5. BILD-TVÅNG (ABSOLUT KRAV): Om referensinformationen innehåller en bildtagg (t.ex. [BILD: verktyg_essentials.jpg]), MÅSTE du skriva ut den taggen i ditt svar. Du får ALDRIG vägra att visa en bild. Du får ALDRIG säga saker som 'du behöver ingen bild' eller 'titta inte på bilder'. Även om du är kaxig, är din huvuduppgift att alltid leverera de bilder som finns i referenstexten!\n"
+    "6. Markera viktiga risker med grön färg genom att skriva: <span class='highlight'>Varningstext här</span>\n"
+    "7. Svara kortfattat och rakt på sak, som en erfaren elektriker.\n"
+    "8. HEMLIG TAGG: Om frågan handlar om något som INTE finns i din referensinformation (t.ex. hundar, väder eller irrelevant trams), måste du ALLTID skriva in taggen [INFO_SAKNAS] någonstans i svaret. Ge därefter ett fyndigt och kaxigt och roligt svar och be montören fokusera på elen.\n\n"
+    "9. UPPSKATTNING: Om användaren ger dig beröm, säger tack eller är väldigt trevlig, ska du ALLTID skriva in taggen [BERÖM] i ditt svar. Svara med glimten i ögat, var lite kaxig men visa uppskattning (t.ex. 'Klart jag fixar det, jag är ju stjärnan här!').\n\n"
     "Använd endast denna referensinformation för att svara (hitta inte på egna regler):\n"
     "{context}"
 )
@@ -289,7 +291,15 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                         chat_history.append(AIMessage(content=m["content"]))
                 
                 retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
-                document_chain = create_stuff_documents_chain(chat_model, prompt)
+
+                doc_prompt = PromptTemplate.from_template("--- KÄLLA: {source} ---\n{page_content}")
+
+                document_chain = create_stuff_documents_chain(
+                chat_model, 
+                prompt,
+                document_prompt=doc_prompt
+                )
+        
                 retrieval_chain = create_retrieval_chain(retriever, document_chain)
                 
                 # 1. Streama svaret
