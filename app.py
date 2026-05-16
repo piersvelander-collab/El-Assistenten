@@ -274,10 +274,11 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
         st.write(query)
     
     with st.chat_message("assistant", avatar=avatar_bot):
-        with st.spinner("Isoela tänker... ⚡"):
             placeholder = st.empty()
+            # FIXEN: Döda spöktexten direkt genom att visa detta istället!
+            placeholder.markdown("⏳ *Isoela letar i pärmarna...*")
+            
             full_res = ""
-            retrieved_docs = [] # Hållare för källdokument
             
             try:
                 chat_history = []
