@@ -1,11 +1,13 @@
 import os
 import time
+import streamlit as st
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-# 1. KLISTRA IN DIN NYCKEL HÄR
+# Hämta nyckeln i smyg från Streamlits kista
+os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 def bygg_lokalt_index():
     print("⚡ Startar byggandet av el-registret...")

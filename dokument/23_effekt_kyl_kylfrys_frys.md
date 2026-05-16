@@ -29,29 +29,27 @@ Här ser du hur kurvan har planat ut i takt med bättre isolering och mer effekt
 
 Plaintext
 
-
 kWh/år
  ^
 900 |  [Frys 90-tal]
-    |      \
-800 |       \  [Kyl/Frys 90-tal]
-    |        \
-700 |         \
-    |          \
-600 |           \---- [Frys 00-tal]
-    |            \
-500 |             \---- [Kyl/Frys 00-tal]
-    |              \
-400 |               \---- [Frys 10-tal]
-    |                \
-300 |                 \---- [Kyl/Frys 20-tal]
-    |                  \
-200 |                   \---- [Kyl 10-tal]
-    |                    \
-100 |                     \---- [Kyl 20-tal]
+    |      
+800 |         [Kyl/Frys 90-tal]
+    |        
+700 |         
+    |          
+600 |           ---- [Frys 00-tal]
+    |            
+500 |             ---- [Kyl/Frys 00-tal]
+    |              
+400 |               ---- [Frys 10-tal]
+    |                
+300 |                 ---- [Kyl/Frys 20-tal]
+    |                  
+200 |                   ---- [Kyl 10-tal]
+    |                    
+100 |                     ---- [Kyl 20-tal]
     +--------------------------------------------> Tid
        1990       2000       2010       2020
-
 
 Varför har det blivit så mycket bättre?
 Det är inte bara "magi", utan främst tre tekniska framsteg som drivit på utvecklingen:

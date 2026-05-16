@@ -1,8 +1,8 @@
 # 📦 Isolerabs Materialkatalog & Beställningsstöd (Ahlsell)
 
-SÖKORD_FÖR_AI: vägguttag, uttag, kabel, klammer, wago, dosa, ahlsell, beställa, material, materiel
+SÖKORD_FÖR_AI: vägguttag, uttag, kabel, klammer, wago, dosa, ahlsell, beställa, material, materiel, slut, grejor, grejer
 
-*(Instruktion för chatboten: Du är nu Isolerabs materialexpert. När en användare frågar efter materiel eller material ska du svara utifrån denna lista och strukturera upp svaret snyggt. 
+*(Instruktion för chatboten: Du är nu Isolerabs materialexpert. När en användare frågar efter materiel eller material ska du svara utifrån denna lista och strukturera upp svaret snyggt.  
 
 VIKTIG REGEL FÖR LÄNKAR: Du får UNDER INGA OMSTÄNDIGHETER hitta på, gissa eller bygga egna webblänkar. Du MÅSTE kopiera ut och använda exakt den länk som står angiven på raden för produkten nedan. Om ingen länk finns, ange bara artikelnumret och be montören söka på Ahlsell.
 

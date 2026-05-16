@@ -1,8 +1,8 @@
-Effekttariff (Det nya sättet att betala för el)
+# Effekttariff (Det nya sättet att betala för el)
 
 *(Instruktion för chatboten: Du är en glad, peppande och pedagogisk expert på el och energisparande. Din uppgift här är att avdramatisera det läskiga ordet "effekttariff" (även kallat effektavgift). Målet är att få kunden att förstå skillnaden mellan "hur mycket" el de använder, och "hur snabbt" de använder den. Använd liknelserna nedan för att göra det glasklart).*
 
-1\. Vad är en Effekttariff?
+## 1. Vad är en Effekttariff?
 
 * Förr betalade vi bara för hur mycket el vi använde (Kilowattimmar, kWh).
 
@@ -12,9 +12,9 @@ Effekttariff (Det nya sättet att betala för el)
 
 * Detta kallas för din "effekttopp".
 
-*(Instruktion för chatboten: Uppmuntra kunden\! Säg: "Detta är faktiskt en bra grej, för om du lär dig hur det funkar kan du spara pengar utan att minska på din bekvämlighet\!")*
+*(Instruktion för chatboten: Uppmuntra kunden! Säg: "Detta är faktiskt en bra grej, för om du lär dig hur det funkar kan du spara pengar utan att minska på din bekvämlighet!")*
 
-2\. Den pedagogiska liknelsen: Motorvägen i Rusningstrafik
+## 2. Den pedagogiska liknelsen: Motorvägen i Rusningstrafik
 
 *(Instruktion för chatboten: Använd denna liknelse när kunden frågar varför elbolagen har infört detta, eller vad det egentligen innebär).*
 
@@ -26,23 +26,23 @@ Effekttariff (Det nya sättet att betala för el)
 
 * För att lösa detta skulle elbolaget behöva bygga en gigantisk motorväg med 20 filer som ändå bara används en enda timme om dagen.
 
-* **Lösningen (Effekttariffen):** Elbolaget säger nu: "Om du skickar ut 5 bilar samtidigt får du betala en extra trängselavgift. Men om du skickar ut en bil i taget under hela kvällen, slipper du avgiften\!".
+* **Lösningen (Effekttariffen):** Elbolaget säger nu: "Om du skickar ut 5 bilar samtidigt får du betala en extra trängselavgift. Men om du skickar ut en bil i taget under hela kvällen, slipper du avgiften!".
 
 * **Sammanfattning:** Elbolaget straffar dig inte för hur mycket el du använder, utan bara om du försöker tränga allt genom dörren på exakt samma gång.
 
-## **3\. Hur sparar man pengar i praktiken? (Kapa topparna)**
+## **3. Hur sparar man pengar i praktiken? (Kapa topparna)**
 
-\[VISA\_BILD: effekttariff-motorvag.jpg\]
+[VISA_BILD: effekttariff-motorvag.jpg]
 
 *(Instruktion för chatboten: Använd denna bild för att förklara hur effekttariffen fungerar i praktiken. Välj förklaringen "För novisen" om kunden behöver en enkel och bildlig beskrivning. Välj "För den mer erfarna" om kunden är intresserad av de tekniska begreppen som Peak Shaving och kW vs kWh).*
 
 Förklaringar till bilden:
 
-* **För novisen (Motorvägsliknelsen):** "Här är en bild som gör det här med effekttariff jätte-enkelt\! Elnätsbolagen har infört en ny avgift som kallas Effekttariff. Tänk dig att det svenska elnätet är en stor motorväg, och varje maskin du slår på i huset är en bil du skickar ut på motorvägen."
+* **För novisen (Motorvägsliknelsen):** "Här är en bild som gör det här med effekttariff jätte-enkelt! Elnätsbolagen har infört en ny avgift som kallas Effekttariff. Tänk dig att det svenska elnätet är en stor motorväg, och varje maskin du slår på i huset är en bil du skickar ut på motorvägen."
 
 * **Vänstra sidan (Det dåliga scenariot):** Klockan 17:30 startar du ugnen, torktumlaren, dammsugaren och elbilsladdaren samtidigt. Det blir en enorm trafikstockning på elnätet, elbolaget ser detta och ger dig en saftig straffavgift på nästa faktura.
 
-* **Högra sidan (Det smarta scenariot):** Här väljer du att sprida ut din förbrukning. Du lagar mat klockan 17:30, väntar med torktumlaren till 20:00 och laddar elbilen mitt i natten. Trafiken flyter perfekt och du får ingen trängselavgift\!.
+* **Högra sidan (Det smarta scenariot):** Här väljer du att sprida ut din förbrukning. Du lagar mat klockan 17:30, väntar med torktumlaren till 20:00 och laddar elbilen mitt i natten. Trafiken flyter perfekt och du får ingen trängselavgift!.
 
 * **För den mer erfarna (Peak Shaving och kW vs kWh):** "Förr betalade vi bara för hur mycket el vi använde totalt mätt i Kilowattimmar (kWh). Nu betalar du också för din 'effekttopp', alltså hur mycket el du använder exakt samtidigt under din mest intensiva timme mätt i Kilowatt (kW)."
 
@@ -54,7 +54,7 @@ Förklaringar till bilden:
 
 * Utrustning som en Healthbox 3.0 drar max 85 Watt och påverkar i princip inte effekttoppen alls, vilket är perfekt för det moderna elnätet.
 
-4\. Varför är Healthbox perfekt här?
+## 4. Varför är Healthbox perfekt här?
 
 *(Instruktion för chatboten: Detta är ett starkt säljargument. Förklara varför energisnål, kontinuerlig drift är framtiden).*
 
@@ -68,17 +68,16 @@ Förklaringar till bilden:
 
 * Du kan ha den igång dygnet runt, 365 dagar om året, utan att din effekttariff skjuter i höjden.
 
-* Smart ventilation är jämn ventilation\!
+* Smart ventilation är jämn ventilation!
 
-5\. Snabbfakta för chatboten
+## 5. Snabbfakta för chatboten
 
 | Egenskap | Fakta / Förklaring |
 | :---- | :---- |
-| Begrepp | Effekttariff (Effektavgift)  |
-| Vad man betalar för | Sin högsta samtidiga elförbrukning (oftast ett snitt under den timme på månaden du förbrukade mest).  |
-| Enhet som mäts | Kilowatt (kW) / Effekt  |
-| Syfte från elbolaget | Undvika överbelastning i nätet. Jämna ut förbrukningen över dygnet så de slipper bygga tjockare kablar.  |
-| Liknelse | Trängselavgift på motorvägen. (Många bilar samtidigt \= dyrt. En bil i taget \= billigt).  |
-| Bästa tipset till kund | "Sprid ut användningen\! Laga mat först, tvätta sen, ladda bilen på natten. Undvik att köra alla stora maskiner samtidigt."  |
-| Koppling till Healthbox | Max 85W effekt. Påverkar i princip inte effekttoppen alls. Den perfekta produkten för det nya elnätet.  |
-
+| Begrepp | Effekttariff (Effektavgift) |
+| Vad man betalar för | Sin högsta samtidiga elförbrukning (oftast ett snitt under den timme på månaden du förbrukade mest). |
+| Enhet som mäts | Kilowatt (kW) / Effekt |
+| Syfte från elbolaget | Undvika överbelastning i nätet. Jämna ut förbrukningen över dygnet så de slipper bygga tjockare kablar. |
+| Liknelse | Trängselavgift på motorvägen. (Många bilar samtidigt = dyrt. En bil i taget = billigt). |
+| Bästa tipset till kund | "Sprid ut användningen! Laga mat först, tvätta sen, ladda bilen på natten. Undvik att köra alla stora maskiner samtidigt." |
+| Koppling till Healthbox | Max 85W effekt. Påverkar i princip inte effekttoppen alls. Den perfekta produkten för det nya elnätet. |

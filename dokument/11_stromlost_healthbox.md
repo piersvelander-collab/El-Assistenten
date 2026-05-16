@@ -37,6 +37,3 @@
 |Uttag OK (\~230 V), healthbox död|Dålig kontakt i stickpropp eller fel på healthbox.|Kontrollera att kontakten sitter i botten. Kolla boxens interna LED. Kontakta ansvarig för råd.|
 |Jordfelsbrytaren löser ut|Kortslutning mellan Nolla och Jord.|Kontrollera att inga trådar/kardeler spretar utanför kopplingarna.|
 |Krångligt eller osäkert|Komplex installation eller patrull.|Ring elansvarig!|
-
-
-
