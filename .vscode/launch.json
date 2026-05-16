@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🚀 1. Starta Isoela Appen",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "${workspaceFolder}/app.py"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🧠 2. Bygg om Hjärnan",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/bygg_index.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
