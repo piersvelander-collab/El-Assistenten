@@ -24,7 +24,7 @@ def bygg_lokalt_index():
     print("📖 Läser in handböcker...")
     loader = DirectoryLoader(doc_dir, glob="**/*.md", loader_cls=TextLoader, loader_kwargs={'encoding': 'utf-8'})
     docs = loader.load()
-    splits = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50).split_documents(docs)
+    splits = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200).split_documents(docs)
     
     if not splits:
         print("❌ Hittade ingen text i dokumenten.")
