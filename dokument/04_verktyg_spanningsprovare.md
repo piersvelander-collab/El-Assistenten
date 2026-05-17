@@ -19,7 +19,7 @@ Ironside är ditt viktigaste verktyg för att veta om en tråd sover eller är v
 
 ## 3. Tändtråd och Mellantrådar  
 
-* **Tändtråd:** Visar 0V när brytaren är av, hoppar till 230V när knappen trycks in.  
+* **Tändtråd:** Visar 0V när brytaren är av, hoppar till 230V när knappen trycks in. [BILD: strombrytare_tandtrad.jpg]
 * **Mellantråd (Trappkoppling):** Spänningen flyttar sig mellan två kablar när man slår på olika brytare.
 
 ## 4. Strukturerad data för chatbot
