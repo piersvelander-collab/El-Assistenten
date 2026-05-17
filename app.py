@@ -222,6 +222,20 @@ with st.sidebar:
         # log_to_gsheets("Loggade ut")
         st.rerun()
 
+        if DEV_MODE:
+        st.markdown("---")
+        st.markdown("🛠️ **BILD-RÖNTGEN (DEV)**")
+        img_dir = os.path.join(CURRENT_DIR, "bilder")
+        st.caption(f"Letar i: `{img_dir}`")
+        if os.path.exists(img_dir):
+            filer = os.listdir(img_dir)
+            st.success(f"Mappen finns! Hittade {len(filer)} filer.")
+            with st.expander("Se alla filer på servern"):
+                for f in filer:
+                    st.write(f"- `{f}`")
+        else:
+            st.error("🚨 Mappen 'bilder' existerar inte på servern!")
+
 # ==========================================
 # 9. HUVUDGRÄNSSNITT OCH SYSTEMPROMPT
 # ==========================================
