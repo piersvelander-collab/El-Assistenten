@@ -17,7 +17,7 @@ Ironside är ditt viktigaste verktyg för att veta om en tråd sover eller är v
 * **Särskilj Nolla och Jord:** Mät från Fas till de andra. Fas mot Nolla = 230V. Fas mot Jord = 230V.  
 * **Sista kontrollen:** Nolla mot Jord ska visa 0V.
 
-## 3. Tändtråd och Mellantrådar
+## 3. Tändtråd och Mellantrådar (Strömbrytare / Brytare / Kontakt)
 
 [BILD: strombrytare_tandtrad.jpg]
 
@@ -28,7 +28,7 @@ Ironside är ditt viktigaste verktyg för att veta om en tråd sover eller är v
 
 [BILD: strombrytare_tandtrad.jpg]
 
-**Mättabell med IVT2001**
+**Mättabell med IVT2001** (Spänningsprovare / Testpenna / Multimeter)
 
 | Mätpunkt | Förväntat utslag | Identifiering |  
 | :--- | :--- | :--- |  
@@ -38,7 +38,7 @@ Ironside är ditt viktigaste verktyg för att veta om en tråd sover eller är v
 | Fas – Jord | 230V lyser | Din säkerhetsväg. |  
 | Nolla – Jord | 0V | Samma elektriska referenspunkt. |
 
-**Logik för brytare**
+**Logik för brytare** (Strömbrytare / Brytare / Kontakt)
 
 [BILD: strombrytare_tandtrad.jpg]
 
