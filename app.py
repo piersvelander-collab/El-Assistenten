@@ -47,6 +47,24 @@ st.set_page_config(
 )
 
 # ==========================================
+# DÖLJ STREAMLIT-REKLAM OCH MENYER
+# ==========================================
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;} /* Döljer hamburgermenyn */
+            footer {visibility: hidden;}    /* Döljer 'Made with Streamlit' */
+            header {visibility: hidden;}    /* Döljer topplisten */
+            
+            /* Slimmar till marginalerna så appen känns mer som en mobilapp */
+            .block-container {
+                padding-top: 2rem;
+                padding-bottom: 0rem;
+            }
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+# ==========================================
 # 3. INITIERING AV SESSION STATE
 # ==========================================
 if "show_camera" not in st.session_state: 
