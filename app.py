@@ -41,7 +41,7 @@ BOT_AVATAR_PATH = os.path.join(CURRENT_DIR, "isoela_avatar.jpg") # Din framtida 
 
 st.set_page_config(
     page_title="Isoela – Din El-Mentor", 
-    page_icon="⚡", 
+    page_icon="bilder/isoela_app.png", 
     layout="centered",
     initial_sidebar_state="collapsed"
 )
