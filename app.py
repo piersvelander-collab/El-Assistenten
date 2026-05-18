@@ -111,8 +111,8 @@ def load_knowledge_base():
 @st.cache_resource(show_spinner=False)
 def get_chat_model():
     return ChatGoogleGenerativeAI(
-        model="gemini-flash-latest", 
-        temperature=0.2, 
+        model="gemini-2.5-flash", 
+        temperature=0.1, 
         max_retries=5, 
         streaming=True
     )
