@@ -47,17 +47,21 @@ st.set_page_config(
 )
 
 # ==========================================
-# DÖLJ STREAMLIT-REKLAM OCH MENYER
+# DÖLJ STREAMLIT-REKLAM (KÄRNVAPEN-VERSIONEN)
 # ==========================================
 hide_st_style = """
             <style>
-            #MainMenu {visibility: hidden;} /* Döljer hamburgermenyn */
-            footer {visibility: hidden;}    /* Döljer 'Made with Streamlit' */
-            header {visibility: hidden;}    /* Döljer topplisten */
+            /* Döljer hela toppbalken och menyn brutalt på alla skärmar */
+            [data-testid="stHeader"] {display: none !important;}
+            [data-testid="stToolbar"] {display: none !important;}
+            [data-testid="stDecoration"] {display: none !important;} /* Tar bort färgade linjen */
             
-            /* Slimmar till marginalerna så appen känns mer som en mobilapp */
+            /* Döljer 'Made with Streamlit' */
+            footer {display: none !important;}
+            
+            /* Slimmar appen */
             .block-container {
-                padding-top: 2rem;
+                padding-top: 1rem;
                 padding-bottom: 0rem;
             }
             </style>
