@@ -26,8 +26,6 @@ Ironside är ditt viktigaste verktyg för att veta om en tråd sover eller är v
 
 ## 4. Strukturerad data för chatbot
 
-[BILD: strombrytare_tandtrad.jpg]
-
 **Mättabell med IVT2001** (Spänningsprovare / Testpenna / Multimeter)
 
 | Mätpunkt | Förväntat utslag | Identifiering |  
