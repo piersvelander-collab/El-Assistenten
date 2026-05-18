@@ -332,7 +332,7 @@ if query := st.chat_input("Fråga Isoela (t.ex. 'Hur kopplar jag vägguttaget?')
                 retrieval_chain = create_retrieval_chain(retriever, document_chain)
                 
                 # 1. Streama svaret
-                for chunk in retrieval_chain.stream({"input": query, "chat_history": chat_history}):
+                for chunk in retrieval_chain.stream({"input": query, "chat_history": chat_history, "user_name": st.session_state.current_user}):
                     if "context" in chunk:
                         retrieved_docs = chunk["context"] 
                         
