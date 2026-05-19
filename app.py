@@ -190,30 +190,67 @@ if not st.session_state.logged_in:
         "**Genom att logga in intygar du att du förstår detta och att du personligen bär det fulla ansvaret för det fackmässiga utförandet av ditt arbete.**"
     )
     
-    with st.form("login_form"):
-        u = st.text_input("Användarnamn:", autocomplete="username")
-        p = st.text_input("Lösenord:", type="password", autocomplete="current-password")
-        submitted = st.form_submit_button("Lås upp Isoela", use_container_width=True)
+    # Skapa två flikar: En för inloggning och en för registrering
+    tab1, tab2 = st.tabs(["🚪 Logga in", "📝 Skapa nytt konto"])
+    
+    # --- FLIK 1: LOGGA IN ---
+    with tab1:
+        with st.form("login_form"):
+            u = st.text_input("Användarnamn:", autocomplete="username")
+            p = st.text_input("Lösenord:", type="password", autocomplete="current-password")
+            submitted = st.form_submit_button("Lås upp Isoela", use_container_width=True)
+            
+            if submitted:
+                sheet = get_google_sheet("Anvandare")
+                if sheet:
+                    anvandare_funnen = False
+                    for row in sheet.get_all_records():
+                        if str(row.get("Användarnamn", "")).lower() == u.lower() and str(row.get("Lösenord", "")) == p:
+                            anvandare_funnen = True
+                            # Kolla om du har spärrat dem i ditt Google Sheet
+                            if str(row.get("Status", "")).lower() == "godkänd":
+                                st.session_state.logged_in = True
+                                st.session_state.current_user = u.capitalize()
+                                st.rerun()
+                            else:
+                                st.error("Ditt konto är spärrat/inaktivt. Kontakta elansvarig (Pier).")
+                    if not anvandare_funnen:
+                        st.error("Fel användarnamn eller lösenord. Har du skapat ett konto först?")
+                else:
+                    st.error("Kunde inte nå användardatabasen (Google Sheets).")
+                    
+    # --- FLIK 2: SKAPA KONTO ---
+    with tab2:
+        st.markdown("### Ny montör på bygget?")
+        st.write("Skapa dina egna inloggningsuppgifter nedan.")
         
-        if submitted:
-            sheet = get_google_sheet("Anvandare")
-            if sheet:
-                anvandare_funnen = False
-                for row in sheet.get_all_records():
-                    if str(row.get("Användarnamn", "")).lower() == u.lower() and str(row.get("Lösenord", "")) == p:
-                        anvandare_funnen = True
-                        if str(row.get("Status", "")).lower() == "godkänd":
-                            st.session_state.logged_in = True
-                            st.session_state.current_user = u.capitalize()
-                           # log_to_gsheets("Inloggning lyckades")
-                            st.rerun()
+        with st.form("register_form"):
+            ny_anv = st.text_input("Välj användarnamn:")
+            nytt_los = st.text_input("Välj lösenord:", type="password")
+            register_submitted = st.form_submit_button("Skapa konto", use_container_width=True)
+            
+            if register_submitted:
+                # Kolla så de inte råkar klicka tomt
+                if len(ny_anv) < 2 or len(nytt_los) < 2:
+                    st.error("Användarnamn och lösenord måste vara minst 2 tecken långa.")
+                else:
+                    sheet = get_google_sheet("Anvandare")
+                    if sheet:
+                        # Kolla om namnet redan finns i listan
+                        anvandare_finns = any(str(row.get("Användarnamn", "")).lower() == ny_anv.lower() for row in sheet.get_all_records())
+                        
+                        if anvandare_finns:
+                            st.error("Det användarnamnet är redan upptaget. Välj ett annat!")
                         else:
-                            st.error("Ditt konto är inaktivt. Kontakta admin.")
-                if not anvandare_funnen:
-                    st.error("Fel användarnamn eller lösenord. Försök igen.")
-            else:
-                st.error("Kunde inte nå användardatabasen (Google Sheets).")
-                
+                            # Lägg till dem direkt i ditt Google Sheet med status "godkänd"
+                            try:
+                                sheet.append_row([ny_anv, nytt_los, "godkänd"])
+                                st.success("🎉 Konto skapat! Byt till fliken 'Logga in' för att starta Isoela.")
+                            except Exception as e:
+                                st.error(f"Ett fel uppstod när kontot skulle sparas: {e}")
+                    else:
+                        st.error("Kunde inte nå Google Sheets för att skapa kontot.")
+                        
     st.stop()
 
 # ==========================================
